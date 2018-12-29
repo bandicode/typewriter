@@ -29,6 +29,30 @@ public:
     return fmt;
   }
 
+  static textedit::TextFormat underlineFormat()
+  {
+    textedit::TextFormat fmt;
+    fmt.setUnderlineStyle(textedit::TextFormat::DashDotLine);
+    fmt.setUnderlineColor(Qt::red);
+    return fmt;
+  }
+
+  static textedit::TextFormat waveUnderlineFormat()
+  {
+    textedit::TextFormat fmt;
+    fmt.setUnderlineStyle(textedit::TextFormat::WaveUnderline);
+    fmt.setUnderlineColor(Qt::green);
+    return fmt;
+  }
+
+  static textedit::TextFormat strikeOutFormat()
+  {
+    textedit::TextFormat fmt;
+    fmt.setStrikeOut();
+    fmt.setStrikeOutColor(Qt::blue);
+    return fmt;
+  }
+
   void highlightBlock(const QString & text) override
   {
     static const QSet<QString> keywords = getKeywords();
@@ -39,6 +63,12 @@ public:
     {
       if (keywords.contains(t))
         setFormat(offset, t.length(), keywordFormat());
+      else if (t == "underline")
+        setFormat(offset, t.length(), underlineFormat());
+      else if (t == "wave_underline")
+        setFormat(offset, t.length(), waveUnderlineFormat());
+      else if (t == "strikeout")
+        setFormat(offset, t.length(), strikeOutFormat());
       offset += t.length() + 1;
     }
   }
@@ -56,11 +86,14 @@ int main(int argc, char *argv[])
   using namespace textedit;
 
   QStringList lines;
-  lines << "int n = 0;"
+  lines << "int underline = 0;"
     << "int abs(int a)"
     << "{"
     << "  return a < 0 ? -a : a;"
-    << "}";
+    << "}"
+    << "bool wave_underline = false;"
+    << ""
+    << "strikeout ();";
 
   TextDocument *doc = new TextDocument{ lines.join("\n") };
 

@@ -364,7 +364,6 @@ TextViewImpl::TextViewImpl(const TextDocument *doc)
   , firstDirtyLine{-1, 0}
 {
   tabreplace = "  ";
-  calculateMetrics(this->font);
 
   auto it = doc->firstBlock();
   do
@@ -533,7 +532,7 @@ TextView::TextView(const TextDocument *document)
     font.setKerning(false);
     font.setStyleHint(QFont::TypeWriter);
     font.setFixedPitch(true);
-    font.setPixelSize(10);
+    font.setPixelSize(40);
     setFont(font);
   }
 }
@@ -894,18 +893,129 @@ void TextView::drawLine(QPainter *painter, const QPoint & offset, view::Line lin
   }
 }
 
+void TextView::drawStrikeOut(QPainter *painter, const QPoint & offset, const TextFormat & fmt, int count)
+{
+  QPen pen{ fmt.strikeOutColor() };
+  const int penwidth = std::max(1, metrics().ascent / 10);
+  pen.setWidth(penwidth);
+
+  painter->setPen(pen);
+
+  painter->drawLine(offset.x(), offset.y() - metrics().strikeoutpos, offset.x() + count * metrics().charwidth, offset.y() - metrics().strikeoutpos);
+}
+
 void TextView::drawUnderline(QPainter *painter, const QPoint & offset, const TextFormat & fmt, int count)
 {
   if (fmt.underlineStyle() == TextFormat::NoUnderline)
+  {
     return;
+  }
+  else if (fmt.underlineStyle() == TextFormat::WaveUnderline)
+  {
+    drawWaveUnderline(painter, offset, fmt, count);
+  }
+  else
+  {
+    QPen pen{ fmt.underlineColor() };
+
+    const int penwidth = std::max(1, metrics().ascent / 10);
+    pen.setWidth(penwidth);
+
+    switch (fmt.underlineStyle())
+    {
+    case TextFormat::SingleUnderline:
+      pen.setStyle(Qt::SolidLine);
+      break;
+    case TextFormat::DashUnderline:
+      pen.setStyle(Qt::DashLine);
+      break;
+    case TextFormat::DotLine:
+      pen.setStyle(Qt::DotLine);
+      break;
+    case TextFormat::DashDotLine:
+      pen.setStyle(Qt::DashDotLine);
+      break;
+    case TextFormat::DashDotDotLine:
+      pen.setStyle(Qt::DashDotDotLine);
+      break;
+    default:
+      break;
+    }
+
+    painter->setPen(pen);
+    //painter->drawLine(offset.x(), offset.y() + metrics().underlinepos, offset.x() + count * metrics().charwidth, offset.y() + metrics().underlinepos);
+    painter->drawLine(offset.x(), offset.y() + metrics().descent - penwidth - 1, offset.x() + count * metrics().charwidth, offset.y() + metrics().descent - penwidth - 1);
+  }
+}
+
+static QPixmap generate_wave_pattern(const QPen & pen, const view::Metrics & metrics)
+{
+  /// TODO: add cache
+
+  const int pattern_height = metrics.descent * 2 / 3;
+  const int pattern_width = metrics.charwidth * 13 / 16;
+
+  QPixmap img{ pattern_width, pattern_height };
+  img.fill(QColor{ 255, 255, 255, 0 });
+
+  QPainterPath path;
+  path.moveTo(0, img.height() - 1);
+  path.lineTo(pattern_width / 2.f, 0.5);
+  path.lineTo(pattern_width, img.height() - 1);
+
+  QPainter painter{ &img };
+  painter.setPen(pen);
+  painter.setRenderHint(QPainter::Antialiasing);
+  painter.drawPath(path);
+
+  return img;
+}
+
+static void fill_with_pattern(QPainter *painter, const QRect & rect, const QPixmap & pattern)
+{
+  const int y = rect.top();
+  
+  int x = rect.left();
+
+  const int full = rect.width() / pattern.width();
+  for (int i(0); i < full; ++i)
+  {
+    painter->drawPixmap(x, y, pattern);
+    x += pattern.width();
+  }
+
+  const int partial_width = rect.width() - pattern.width() * full;
+
+  if (partial_width > 0)
+    painter->drawPixmap(QPoint(x, y), pattern, QRect(0, 0, partial_width, pattern.height()));
+}
+
+void TextView::drawWaveUnderline(QPainter *painter, const QPoint & offset, const TextFormat & fmt, int count)
+{
+  /// TODO:
+  QPen pen{ fmt.underlineColor() };
+
+  const int penwidth = std::max(1, metrics().ascent / 10);
+  pen.setWidth(penwidth);
+
+  pen.setJoinStyle(Qt::RoundJoin);
+
+  QPixmap pattern = generate_wave_pattern(pen, metrics());  
+  QRect rect{ offset.x(), offset.y() + metrics().descent - pattern.height(), count * metrics().charwidth, pattern.height() };
+
+  fill_with_pattern(painter, rect, pattern);
 }
 
 void TextView::drawFragment(QPainter *painter, QPoint & offset, view::Fragment fragment)
 {
-  applyFormat(painter, fragment.format());
+  const TextFormat & fmt = fragment.format();
+  applyFormat(painter, fmt);
 
   QString text = fragment.text();
   painter->drawText(offset, text);
+
+  if (fmt.strikeOut())
+    drawStrikeOut(painter, offset, fmt, text.length());
 
   drawUnderline(painter, offset, fragment.format(), text.length());
 
@@ -915,11 +1025,16 @@ void TextView::drawFragment(QPainter *painter, QPoint & offset, view::Fragment f
 void TextView::applyFormat(QPainter *painter, const TextFormat & fmt)
 {
   QFont f = painter->font();
-  f.setBold(fmt.isBold());
-  f.setItalic(fmt.isItalic());
+  f.setBold(fmt.bold());
+  f.setItalic(fmt.italic());
   painter->setFont(f);
   painter->setPen(QPen(fmt.textColor()));
   painter->setBrush(QBrush(fmt.backgroundColor()));
+}
+
+const view::Metrics & TextView::metrics() const
+{
+  return d->metrics;
 }
 
 void TextView::updateLayout()

@@ -23,6 +23,7 @@ namespace view
 {
 class Fragment;
 class Line;
+class Metrics;
 } // namespace view
 
 class SyntaxHighlighter;
@@ -101,8 +102,12 @@ protected:
 
   virtual void drawLine(QPainter *painter, const QPoint & offset, view::Line line);
   void drawFragment(QPainter *painter, QPoint & offset, view::Fragment fragment);
+  void drawStrikeOut(QPainter *painter, const QPoint & offset, const TextFormat & fmt, int count);
   void drawUnderline(QPainter *painter, const QPoint & offset, const TextFormat & fmt, int count);
+  void drawWaveUnderline(QPainter *painter, const QPoint & offset, const TextFormat & fmt, int count);
   void applyFormat(QPainter *painter, const TextFormat & fmt);
+
+  const view::Metrics & metrics() const;
 
 protected:
   void updateLayout();

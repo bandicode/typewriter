@@ -21,9 +21,14 @@ public:
   ~TextFormat() = default;
 
   inline void setBold(bool on = true) { mBold = on; }
-  inline bool isBold() const { return mBold; }
+  inline bool bold() const { return mBold; }
   inline void setItalic(bool on = true) { mItalic = on; }
-  inline bool isItalic() const { return mItalic; }
+  inline bool italic() const { return mItalic; }
+  inline void setStrikeOut(bool on = true) { mStrikeOut = on; }
+  inline bool strikeOut() const { return mStrikeOut; }
+
+  inline const QColor & strikeOutColor() const { return mStrikeOutColor; }
+  inline void setStrikeOutColor(const QColor & color) { mStrikeOutColor = color; }
 
   inline const QColor & textColor() const { return mTextColor; }
   inline void setTextColor(const QColor & color) { mTextColor = color; }
@@ -50,13 +55,15 @@ public:
   inline UnderlineStyle underlineStyle()  const { return mUnderline; }
   inline void setUnderlineStyle(UnderlineStyle style) { mUnderline = style; }
   const QColor & underlineColor() const { return mUnderlineColor; }
+  inline void setUnderlineColor(const QColor & color) { mUnderlineColor = color; }
 
   TextFormat & operator=(const TextFormat &) = default;
 
 private:
   bool mBold;
   bool mItalic;
-  bool mStrikedthrough;
+  bool mStrikeOut;
+  QColor mStrikeOutColor;
   QColor mTextColor;
   QColor mBackgroundColor;
   QColor mForegroundColor;

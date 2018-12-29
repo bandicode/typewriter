@@ -10,7 +10,7 @@ namespace textedit
 TextFormat::TextFormat()
   : mBold(false)
   , mItalic(false)
-  , mStrikedthrough(false)
+  , mStrikeOut(false)
   , mUnderline(NoUnderline)
   , mTextColor(QColor(0, 0, 0))
   , mBackgroundColor(QColor(255, 255, 255))

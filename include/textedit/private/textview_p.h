@@ -8,6 +8,7 @@
 #include "textedit/textedit.h"
 
 #include "textedit/view/line.h"
+#include "textedit/view/metrics.h"
 #include "textedit/syntaxhighlighter.h"
 #include "textedit/textview.h"
 
@@ -30,16 +31,6 @@ struct ActiveFold
   ActiveFold();
   ActiveFold(const ActiveFold &) = default;
   ActiveFold(const Position & b, const Position & e, const Line & el);
-};
-
-struct Metrics
-{
-  int charwidth;
-  int lineheight;
-  int ascent;
-  int descent;
-  int underlinepos;
-  int strikeoutpos;
 };
 
 } // namespace view
