@@ -193,8 +193,29 @@ bool TextCursor::hasSelection() const
 
 QString TextCursor::selectedText() const
 {
-  /// TODO
-  throw std::runtime_error{ "Not Implemented" };
+  if (!hasSelection())
+    return QString();
+
+  auto start = selectionStart();
+  auto end = selectionEnd();
+
+  if (start.line == end.line)
+    return block().text().mid(start.column, end.column - start.column);
+
+  TextBlock b = start == position() ? block() : prev(block(), end.line - start.line);
+
+  QString result = b.text().mid(start.column);
+
+  for (int i(start.line + 1); i < end.line; ++i)
+  {
+    b = b.next();
+    result.append("\n").append(b.text());
+  }
+
+  b = b.next();
+  result.append("\n").append(b.text().left(end.column));
+
+  return result;
 }
 
 void TextCursor::removeSelectedText()
