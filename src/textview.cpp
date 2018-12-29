@@ -943,8 +943,9 @@ void TextView::updateLayout()
   bool hscrollbar_visible = true;
   if (d->hpolicy == Qt::ScrollBarAlwaysOn)
   {
-    rect_hscrollbar = QRect(0, this->height() - d->hscrollbar->height(), available_width, d->hscrollbar->height());
-    available_height -= d->hscrollbar->height();
+    rect_hscrollbar = QRect(0, this->height() - d->hscrollbar->sizeHint().height(), available_width, d->hscrollbar->sizeHint().height());
+    rect_vscrollbar.adjust(0, 0, 0, -rect_hscrollbar.height());
+    available_height -= rect_hscrollbar.height();
   }
   else if (d->hpolicy == Qt::ScrollBarAsNeeded)
   {
@@ -954,7 +955,8 @@ void TextView::updateLayout()
     }
     else
     {
-      rect_hscrollbar = QRect(0, this->height() - d->hscrollbar->height(), available_width, d->hscrollbar->height());
+      rect_hscrollbar = QRect(0, this->height() - d->hscrollbar->sizeHint().height(), available_width, d->hscrollbar->sizeHint().height());
+      rect_vscrollbar.adjust(0, 0, 0, -rect_hscrollbar.height());
     }
   }
   else
