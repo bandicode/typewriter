@@ -20,7 +20,7 @@ namespace view
 {
 class Fragment;
 class Line;
-class Metrics;
+struct Metrics;
 } // namespace view
 
 class SyntaxHighlighter;
@@ -38,6 +38,7 @@ public:
   int firstVisibleLine() const;
   TextBlock firstVisibleBlock() const;
   void scroll(int delta);
+  int visibleLineCount() const;
   int lastVisibleLine() const;
 public Q_SLOTS:
   void setFirstVisibleLine(int n);
@@ -89,6 +90,8 @@ public:
   void insertWidget(int line, int num, QWidget *w);
   const QMap<LineRange, QWidget*> & insertedWidgets() const;
   void insertFloatingWidget(QWidget *widget, const QPoint & pos);
+
+  inline TextViewImpl* impl() const { return d.get(); }
 
 protected Q_SLOTS:
   void onBlockDestroyed(int line, const TextBlock & block);

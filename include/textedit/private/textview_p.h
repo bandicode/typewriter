@@ -7,6 +7,7 @@
 
 #include "textedit/textedit.h"
 
+#include "textedit/gutter.h"
 #include "textedit/view/line.h"
 #include "textedit/view/metrics.h"
 #include "textedit/syntaxhighlighter.h"
@@ -63,6 +64,8 @@ public:
 
   SyntaxHighlighter *syntaxHighlighter;
   Position firstDirtyLine; // first line that needs highlighting
+
+  Gutter *gutter;
 
 public:
   TextViewImpl(const TextDocument *doc);

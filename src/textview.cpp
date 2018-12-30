@@ -6,6 +6,7 @@
 #include "textedit/private/textview_p.h"
 
 #include "textedit/view/fragment.h"
+#include "textedit/private/gutter_p.h"
 #include "textedit/private/syntaxhighlighter_p.h"
 
 #include <QPainter>
@@ -362,6 +363,7 @@ TextViewImpl::TextViewImpl(const TextDocument *doc)
   : hpolicy(Qt::ScrollBarAsNeeded)
   , vpolicy(Qt::ScrollBarAlwaysOn)
   , firstDirtyLine{-1, 0}
+  , gutter(nullptr)
 {
   tabreplace = "  ";
 
@@ -523,6 +525,9 @@ TextView::TextView(const TextDocument *document)
   d->vscrollbar->setValue(0);
   connect(d->vscrollbar, &QScrollBar::valueChanged, this, &TextView::setFirstVisibleLine);
 
+  d->gutter = new Gutter{ this };
+  d->gutter->impl()->view = this;
+
   d->setLongestLine(d->findLongestLine());
 
   d->syntaxHighlighter = new SyntaxHighlighter(this);
@@ -587,11 +592,17 @@ void TextView::setFirstVisibleLine(int n)
   scroll(n - firstVisibleLine());
 }
 
-int TextView::lastVisibleLine() const
+int TextView::visibleLineCount() const
 {
   int numline = d->viewport.height() / d->metrics.lineheight;
   if (d->metrics.lineheight * d->viewport.height() < numline)
     numline++;
+  return std::min(document()->lineCount() - firstVisibleLine(), numline);
+}
+
+int TextView::lastVisibleLine() const
+{
+  const int numline = visibleLineCount() - 1;
   return std::min(document()->lineCount() - 1, firstVisibleLine() + numline);
 }
 
@@ -806,7 +817,8 @@ void TextView::onBlockDestroyed(int line, const TextBlock & block)
   d->firstDirtyLine.column = 0;
 
   d->vscrollbar->setMaximum(d->vscrollbar->maximum() - 1);
-  
+  updateLayout();
+
   if (line <= lastVisibleLine())
   {
     update();
@@ -829,6 +841,7 @@ void TextView::onBlockInserted(const Position & pos, const TextBlock & block)
   d->firstDirtyLine.column = 0;
 
   d->vscrollbar->setMaximum(d->vscrollbar->maximum() + 1);
+  updateLayout();
 
   if (pos.line <= lastVisibleLine())
   {
@@ -851,10 +864,12 @@ void TextView::onContentsChange(const TextBlock & block, const Position & pos, i
   if (d->longestLine == block && charsRemoved > charsAdded)
   {
     d->setLongestLine(d->findLongestLine());
+    updateLayout();
   }
   else if (block.length() > d->longestLine.length())
   {
     d->setLongestLine(block);
+    updateLayout();
   }
 
   if (pos.line >= firstVisibleLine() && pos.line <= lastVisibleLine())
@@ -895,9 +910,9 @@ void TextView::paint(QPainter *painter)
   auto it = d->firstLine;
 
   const int firstline = it.number();
-  const int numline = lastVisibleLine() - firstline;
+  const int numline = visibleLineCount();
 
-  for (int i(0); i <= numline; ++i)
+  for (int i(0); i < numline; ++i)
   {
     it.seek(firstline + i);
 
@@ -1069,16 +1084,23 @@ void TextView::updateLayout()
   int available_width = this->width();
   int available_height = this->height();
 
-  QRect rect_vscrollbar;
+  QRect rect_vscrollbar{ this->width(), 0, 0, 0 };
   bool vscrollbar_visible = true;
   if (d->vpolicy != Qt::ScrollBarAlwaysOff)
   {
     rect_vscrollbar = QRect(this->width() - d->vscrollbar->sizeHint().width(), 0, d->vscrollbar->sizeHint().width(), this->height());
-    available_width = this->width() - rect_vscrollbar.width();
+    available_width -= rect_vscrollbar.width();
   }
   else
   {
     vscrollbar_visible = false;
+  }
+
+  QRect rect_gutter{ 0, 0, 0, 0 };
+  if (d->gutter->isVisible())
+  {
+    rect_gutter = QRect(0, 0, d->gutter->sizeHint().width(), available_height);
+    available_width -= d->gutter->sizeHint().width();
   }
 
   QRect rect_hscrollbar;
@@ -1087,6 +1109,7 @@ void TextView::updateLayout()
   {
     rect_hscrollbar = QRect(0, this->height() - d->hscrollbar->sizeHint().height(), available_width, d->hscrollbar->sizeHint().height());
     rect_vscrollbar.adjust(0, 0, 0, -rect_hscrollbar.height());
+    rect_gutter.adjust(0, 0, 0, -rect_hscrollbar.height());
     available_height -= rect_hscrollbar.height();
   }
   else if (d->hpolicy == Qt::ScrollBarAsNeeded)
@@ -1099,6 +1122,7 @@ void TextView::updateLayout()
     {
       rect_hscrollbar = QRect(0, this->height() - d->hscrollbar->sizeHint().height(), available_width, d->hscrollbar->sizeHint().height());
       rect_vscrollbar.adjust(0, 0, 0, -rect_hscrollbar.height());
+      rect_gutter.adjust(0, 0, 0, -rect_hscrollbar.height());
     }
   }
   else
@@ -1116,6 +1140,11 @@ void TextView::updateLayout()
     d->vscrollbar->setVisible(false);
   }
 
+  if (d->gutter->isVisible())
+  {
+    d->gutter->setGeometry(rect_gutter);
+  }
+
   if (hscrollbar_visible)
   {
     d->hscrollbar->setVisible(true);
@@ -1127,7 +1156,7 @@ void TextView::updateLayout()
   }
 
   QRect vp = d->viewport;
-  d->viewport = QRect(0, 0, available_width, available_height);
+  d->viewport = QRect(rect_gutter.right() + 1, 0, rect_vscrollbar.left() - rect_gutter.right() - 1, available_height);
 
   if (vp != d->viewport)
     update();
