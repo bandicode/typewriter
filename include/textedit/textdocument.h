@@ -21,8 +21,8 @@ class TEXTEDIT_API TextDocument : public QObject
 {
   Q_OBJECT
 public:
-  TextDocument();
-  TextDocument(const QString & text);
+  TextDocument(QObject *parent = nullptr);
+  TextDocument(const QString & text, QObject *parent = nullptr);
   ~TextDocument();
 
   const QString & text(int line) const;

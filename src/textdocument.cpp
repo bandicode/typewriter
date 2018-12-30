@@ -153,6 +153,7 @@ void TextDocumentImpl::insertChar(Position pos, const TextBlock & block, const Q
 void TextDocumentImpl::insertText(Position pos, const TextBlock & block, const QString & str)
 {
   block.impl()->content.insert(pos.column, str);
+  block.impl()->revision += 1;
 
   for (int i(0); i < this->cursors.count(); ++i)
   {
@@ -227,6 +228,7 @@ void TextDocumentImpl::deleteChar(Position pos, const TextBlock & block)
   else
   {
     block.impl()->content.remove(pos.column, 1);
+    block.impl()->revision += 1;
 
     // Update cursors
     for (int i(0); i < this->cursors.count(); ++i)
@@ -308,6 +310,7 @@ void TextDocumentImpl::deletePreviousChar(Position pos, const TextBlock & block)
   else
   {
     block.impl()->content.remove(pos.column - 1, 1);
+    block.impl()->revision += 1;
 
     // Update cursors
     for (int i(0); i < this->cursors.count(); ++i)
@@ -393,6 +396,7 @@ void TextDocumentImpl::remove_selection_multiline(const Position begin, const Te
   {
     it = it.next();
     it.impl()->setGarbage();
+    this->lineCount -= 1;
     Q_EMIT document->blockDestroyed(begin.line + i, it);
   }
 
@@ -460,14 +464,16 @@ void TextDocumentImpl::remove_selection_multiline(const Position begin, const Te
 }
 
 
-TextDocument::TextDocument()
-  : d(new TextDocumentImpl(this))
+TextDocument::TextDocument(QObject *parent)
+  : QObject(parent)
+  , d(new TextDocumentImpl(this))
 {
 
 }
 
-TextDocument::TextDocument(const QString & text)
-  : d(new TextDocumentImpl(this))
+TextDocument::TextDocument(const QString & text, QObject *parent)
+  : QObject(parent)
+  , d(new TextDocumentImpl(this))
 {
   TextCursor{ this }.insertText(text);
 }

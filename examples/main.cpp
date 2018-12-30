@@ -6,7 +6,7 @@
 
 #include "textedit/syntaxhighlighter.h"
 #include "textedit/textdocument.h"
-#include "textedit/textview.h"
+#include "textedit/texteditor.h"
 
 #include <QMouseEvent>
 #include <QVBoxLayout>
@@ -79,10 +79,8 @@ public:
   }
 };
 
-int main(int argc, char *argv[])
+void text_view()
 {
-  QApplication app(argc, argv);
-
   using namespace textedit;
 
   QStringList lines;
@@ -103,6 +101,20 @@ int main(int argc, char *argv[])
 
   view->resize(400, 200);
   view->show();
+}
+
+void text_editor()
+{
+  textedit::TextEditor *editor = new textedit::TextEditor();
+  editor->setSyntaxHighlighter<CustomSyntaxHighlighter>();
+  editor->show();
+}
+
+int main(int argc, char *argv[])
+{
+  QApplication app(argc, argv);
+
+  text_editor();
 
   return app.exec();
 }

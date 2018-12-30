@@ -40,6 +40,10 @@ public:
 
   enum MoveOperation {
     NoMove = 0,
+    Down = 12,
+    Left = 9,
+    Right = 19,
+    Up = 2,
   };
 
   const Position & position() const;
@@ -59,6 +63,7 @@ public:
   Position selectionEnd() const;
   bool hasSelection() const;
   QString selectedText() const;
+  void clearSelection();
   void removeSelectedText();
 
   void beginEdit();

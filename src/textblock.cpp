@@ -33,10 +33,8 @@ TextBlockRef::TextBlockRef(const TextBlockRef & other)
 
 TextBlockRef::~TextBlockRef()
 {
-  if (--d->ref == 0)
-  {
+  if(d != nullptr && --d->ref == 0)
     delete d;
-  }
 }
 
 TextBlockRef & TextBlockRef::operator=(const TextBlockRef & other)

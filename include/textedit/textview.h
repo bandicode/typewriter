@@ -5,9 +5,6 @@
 #ifndef TEXTEDIT_TEXTVIEW_H
 #define TEXTEDIT_TEXTVIEW_H
 
-#include "textedit/textedit.h"
-
-#include "textcursor.h"
 #include "textedit/textdocument.h"
 #include "textedit/view/extraselection.h"
 
@@ -65,6 +62,9 @@ public:
   int hscroll() const;
   const QRect & viewport() const;
   Position hitTest(const QPoint & pos) const;
+  QPoint mapToViewport(const Position & pos) const;
+  QPoint map(const Position & pos) const;
+  bool isVisible(const Position &pos) const;
 
   void fold(int line);
   void unfold(int line);
@@ -100,6 +100,8 @@ protected:
   void resizeEvent(QResizeEvent *e) override;
   void wheelEvent(QWheelEvent *e) override;
 
+  void setupPainter(QPainter *painter);
+  void paint(QPainter *painter);
   virtual void drawLine(QPainter *painter, const QPoint & offset, view::Line line);
   void drawFragment(QPainter *painter, QPoint & offset, view::Fragment fragment);
   void drawStrikeOut(QPainter *painter, const QPoint & offset, const TextFormat & fmt, int count);

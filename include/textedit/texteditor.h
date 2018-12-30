@@ -5,18 +5,47 @@
 #ifndef TEXTEDIT_TEXTEDITOR_H
 #define TEXTEDIT_TEXTEDITOR_H
 
-#include "textedit/textedit.h"
+#include "textedit/textview.h"
 
 #include <QWidget>
 
 namespace textedit
 {
 
-class TEXTEDIT_API TextEditor : public QWidget
+class TextEditorImpl;
+
+class TEXTEDIT_API TextEditor : public TextView
 {
   Q_OBJECT
 public:
+  TextEditor();
+  explicit TextEditor(TextDocument *doc);
+  ~TextEditor();
 
+  TextDocument* document() const;
+  const TextCursor & cursor() const;
+
+protected:
+  void mousePressEvent(QMouseEvent *e) override;
+  void mouseMoveEvent(QMouseEvent *e) override;
+  void mouseReleaseEvent(QMouseEvent *e) override;
+  void mouseDoubleClickEvent(QMouseEvent *e) override;
+
+  void paintEvent(QPaintEvent *e) override;
+
+  void keyPressEvent(QKeyEvent *e) override;
+  void keyReleaseEvent(QKeyEvent *e) override;
+
+  void timerEvent(QTimerEvent *e) override;
+
+  void showEvent(QShowEvent *e) override;
+
+protected:
+  void drawCursor(QPainter *painter, const TextCursor & c);
+  void drawSelection(QPainter *painter, TextBlock block, const Position & begin, const Position & end);
+
+private:
+  std::unique_ptr<TextEditorImpl> d;
 };
 
 } // namespace textedit

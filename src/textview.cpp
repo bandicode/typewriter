@@ -705,6 +705,24 @@ Position TextView::hitTest(const QPoint & pos) const
   return Position{ firstVisibleLine() + line_offset, column_offset };
 }
 
+QPoint TextView::mapToViewport(const Position & pos) const
+{
+  int dy = (pos.line - firstVisibleLine()) * d->metrics.lineheight + d->metrics.ascent;
+  int dx = pos.column * metrics().charwidth;
+
+  return QPoint{ dx - hscroll(), dy };
+}
+
+QPoint TextView::map(const Position & pos) const
+{
+  return mapToViewport(pos) + viewport().topLeft();
+}
+
+bool TextView::isVisible(const Position &pos) const
+{
+  return viewport().contains(map(pos));
+}
+
 void TextView::fold(int line)
 {
   /// TODO
@@ -848,12 +866,31 @@ void TextView::onContentsChange(const TextBlock & block, const Position & pos, i
 void TextView::paintEvent(QPaintEvent *e)
 {
   QPainter painter{ this };
-  painter.setFont(d->font);
-  painter.setClipRect(d->viewport);
+  setupPainter(&painter);
+  paint(&painter);
+}
 
-  painter.setBrush(QBrush(d->defaultFormat.backgroundColor()));
-  painter.setPen(Qt::NoPen);
-  painter.drawRect(d->viewport);
+void TextView::resizeEvent(QResizeEvent *e)
+{
+  updateLayout();
+}
+
+void TextView::wheelEvent(QWheelEvent *e)
+{
+  scroll(-e->delta());
+}
+
+void TextView::setupPainter(QPainter *painter)
+{
+  painter->setFont(d->font);
+  painter->setClipRect(d->viewport);
+}
+
+void TextView::paint(QPainter *painter)
+{
+  painter->setBrush(QBrush(d->defaultFormat.backgroundColor()));
+  painter->setPen(Qt::NoPen);
+  painter->drawRect(d->viewport);
 
   auto it = d->firstLine;
 
@@ -868,18 +905,8 @@ void TextView::paintEvent(QPaintEvent *e)
       it.rehighlight();
 
     const int baseline = i * d->metrics.lineheight + d->metrics.ascent;
-    drawLine(&painter, QPoint{ d->viewport.left() - d->hscrollbar->value(), baseline }, it);
+    drawLine(painter, QPoint{ d->viewport.left() - d->hscrollbar->value(), baseline }, it);
   }
-}
-
-void TextView::resizeEvent(QResizeEvent *e)
-{
-  updateLayout();
-}
-
-void TextView::wheelEvent(QWheelEvent *e)
-{
-  scroll(-e->delta());
 }
 
 void TextView::drawLine(QPainter *painter, const QPoint & offset, view::Line line)

@@ -140,12 +140,111 @@ void TextCursor::setPosition(const Position & pos, MoveMode mode)
     mImpl->anchor = mImpl->pos;
 }
 
+class MoveGuard
+{
+public:
+  TextCursorImpl * cursor;
+  TextCursor::MoveMode mode;
+
+  ~MoveGuard()
+  {
+    if (mode == TextCursor::MoveAnchor)
+    {
+      cursor->anchor = cursor->pos;
+    }
+  }
+};
+
+static bool move_down(TextCursorImpl *cursor, int n)
+{
+  const int count = std::min(n, cursor->block.document()->lineCount() - 1 - cursor->pos.line);
+
+  for (int i(0); i < count; ++i)
+  {
+    cursor->pos.line += 1;
+    cursor->block = cursor->block.next();
+  }
+
+  if (cursor->pos.column > cursor->block.length())
+    cursor->pos.column = cursor->block.length();
+
+  return count == n;
+}
+
+static bool move_left(TextCursorImpl *cursor, int n)
+{
+  cursor->pos.column -= n;
+
+  while (cursor->pos.column < 0 && cursor->pos.line > 0)
+  {
+    cursor->block = cursor->block.previous();
+    cursor->pos.column += cursor->block.length() + 1;
+    cursor->pos.line -= 1;
+  }
+
+  if (cursor->pos.column < 0)
+  {
+    cursor->pos.column = 0;
+    return false;
+  }
+
+  return true;
+}
+
+static bool move_right(TextCursorImpl *cursor, int n)
+{
+  const int maxline = cursor->block.document()->lineCount() - 1;
+
+  cursor->pos.column += n;
+
+  while (cursor->pos.column > cursor->block.length() && cursor->pos.line < maxline)
+  {
+    cursor->pos.column -= cursor->block.length() + 1;
+    cursor->block = cursor->block.next();
+    cursor->pos.line += 1;
+  }
+
+  if (cursor->pos.column > cursor->block.length())
+  {
+    cursor->pos.column = cursor->block.length();
+    return false;
+  }
+
+  return true;
+}
+
+static bool move_up(TextCursorImpl *cursor, int n)
+{
+  const int count = std::min(n, cursor->pos.line);
+
+  for (int i(0); i < count; ++i)
+  {
+    cursor->pos.line -= 1;
+    cursor->block = cursor->block.previous();
+  }
+
+  if (cursor->pos.column > cursor->block.length())
+    cursor->pos.column = cursor->block.length();
+
+  return count == n;
+}
+
 bool TextCursor::movePosition(MoveOperation operation, MoveMode mode, int n)
 {
+  MoveGuard anchor_move{ mImpl, mode };
+
   switch (operation)
   {
   case NoMove:
     return true;
+  case Down:
+    return move_down(mImpl, n);
+  case Left:
+    return move_left(mImpl, n);
+  case Right:
+    return move_right(mImpl, n);
+  case Up:
+    return move_up(mImpl, n);
   default:
     return false;
   }
@@ -216,6 +315,12 @@ QString TextCursor::selectedText() const
   result.append("\n").append(b.text().left(end.column));
 
   return result;
+}
+
+void TextCursor::clearSelection()
+{
+  detach();
+  mImpl->anchor = mImpl->pos;
 }
 
 void TextCursor::removeSelectedText()
