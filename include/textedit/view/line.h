@@ -6,7 +6,6 @@
 #define TEXTEDIT_VIEW_LINE_H
 
 #include "textedit/textblock.h"
-#include "textedit/view/extraselection.h"
 #include "textedit/view/formatrange.h"
 
 #include <QLinkedList>

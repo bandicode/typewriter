@@ -770,18 +770,6 @@ void TextView::setSyntaxHighlighter(SyntaxHighlighter *highlighter)
   d->syntaxHighlighter = highlighter;
 }
 
-
-const QList<TextView::ExtraSelection> & TextView::extraSelections() const
-{
-  return d->extraSelections;
-}
-
-void TextView::setExtraSelections(const QList<ExtraSelection> & selections)
-{
-  d->extraSelections = selections;
-  update();
-}
-
 void TextView::insertWidget(int line, int num, QWidget *w)
 {
   /// TODO

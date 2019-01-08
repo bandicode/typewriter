@@ -6,7 +6,6 @@
 #define TEXTEDIT_TEXTVIEW_H
 
 #include "textedit/textdocument.h"
-#include "textedit/view/extraselection.h"
 
 #include <QWidget>
 
@@ -24,6 +23,7 @@ struct Metrics;
 } // namespace view
 
 class SyntaxHighlighter;
+class TextFormat;
 class TextViewImpl;
 
 class TEXTEDIT_API TextView : public QWidget
@@ -81,10 +81,6 @@ public:
   {
     setSyntaxHighlighter(new T);
   }
-
-  typedef view::ExtraSelection ExtraSelection;
-  const QList<ExtraSelection> & extraSelections() const;
-  void setExtraSelections(const QList<ExtraSelection> & selections);
 
   /// rename to 'incrustWidget' ?
   void insertWidget(int line, int num, QWidget *w);

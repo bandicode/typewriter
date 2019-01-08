@@ -54,8 +54,6 @@ public:
 
   QList<view::ActiveFold> activeFolds;
 
-  QList<TextView::ExtraSelection> extraSelections;
-
   QRect viewport;
   QScrollBar *hscrollbar;
   Qt::ScrollBarPolicy hpolicy;
