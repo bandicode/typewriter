@@ -54,6 +54,7 @@ public:
   
   inline int number() const { return mNumber; }
   TextBlock block() const;
+  inline const QString & text() const { return block().text(); }
 
   Line next() const;
   Line previous() const;

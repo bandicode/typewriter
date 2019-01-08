@@ -365,7 +365,7 @@ TextViewImpl::TextViewImpl(const TextDocument *doc)
   , firstDirtyLine{-1, 0}
   , gutter(nullptr)
 {
-  tabreplace = "  ";
+  tabreplace = "    ";
 
   auto it = doc->firstBlock();
   do
@@ -712,14 +712,52 @@ const QRect & TextView::viewport() const
 Position TextView::hitTest(const QPoint & pos) const
 {
   const int line_offset = (pos.y() - viewport().top()) / d->metrics.lineheight;
-  const int column_offset = (pos.x() + hscroll() - viewport().left()) / d->metrics.charwidth;
-  return Position{ firstVisibleLine() + line_offset, column_offset };
+  const int column_offset = std::round((pos.x() + hscroll() - viewport().left()) / float(d->metrics.charwidth));
+
+  /* Seek visible line */
+  auto it = d->firstLine;
+  for (int i(0); i < line_offset; ++i)
+  {
+    if (it.isLast())
+      break;
+
+    it = it.nextVisibleLine();
+  }
+
+  /* Take into account tabulations */
+  const QString & text = it.text();
+  int col = 0;
+  for (int i(0), counter(column_offset); i < text.length() && counter > 0; ++i)
+  {
+    if (text.at(i) == QChar('\t'))
+    {
+      counter -= tabSize();
+      col += counter <= -tabSize() / 2 ? 0 : 1;
+    }
+    else
+    {
+      counter -= 1;
+      col += 1;
+    }
+  }
+
+  return Position{ it.number(), col };
 }
 
 QPoint TextView::mapToViewport(const Position & pos) const
 {
+  /// TODO: take into account invisible lines
   int dy = (pos.line - firstVisibleLine()) * d->metrics.lineheight + d->metrics.ascent;
   int dx = pos.column * metrics().charwidth;
+
+  if (viewport().contains(QPoint(dx - hscroll(), dy)))
+  {
+    /* We need to take into account tabulations */
+    auto it = d->firstLine;
+    it.seek(pos.line);
+    int charincrement = it.text().leftRef(pos.column).count(QChar('\t')) * (tabSize() - 1);
+    dx += charincrement * metrics().charwidth;
+  }
 
   return QPoint{ dx - hscroll(), dy };
 }

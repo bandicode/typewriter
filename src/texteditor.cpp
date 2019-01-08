@@ -59,6 +59,7 @@ const TextCursor & TextEditor::cursor() const
 void TextEditor::mousePressEvent(QMouseEvent *e)
 {
   d->cursor.setPosition(hitTest(e->pos()));
+  d->cursorblink = true;
   /// TODO: scroll if cursor not fully visible
   update();
 }
@@ -192,11 +193,16 @@ void TextEditor::drawSelection(QPainter *painter, TextBlock block, const Positio
 
   if (begin.line == end.line)
   {
+    QPoint endpt = map(end);
+    endpt.ry() -= metrics().ascent;
+
     const int colcount = end.column - begin.column;
-    painter->drawRect(QRect(pt, QSize(colcount * metrics().charwidth, metrics().lineheight)));
+    painter->drawRect(QRect(pt, QSize(endpt.x() - pt.x(), metrics().lineheight)));
   }
   else
   {
+    /// TODO: take tabulations into account
+
     // Drawing first line selection
     int colcount = 1 + block.length() - begin.column;
     painter->drawRect(QRect(pt, QSize(colcount * metrics().charwidth, metrics().lineheight)));
