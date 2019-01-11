@@ -10,6 +10,7 @@
 #include "textedit/gutter.h"
 #include "textedit/view/block.h"
 #include "textedit/view/incrusted-widget.h"
+#include "textedit/view/line.h"
 #include "textedit/view/metrics.h"
 #include "textedit/syntaxhighlighter.h"
 #include "textedit/textview.h"
@@ -44,8 +45,8 @@ class TextViewImpl
 public:
   
   view::BlockInfoList blocks;
-  view::Block firstBlock;
-  TextBlock longestLine;
+  view::Line firstLine;
+  view::Line longestLine;
   int linecount;
 
   QFont font;
@@ -63,7 +64,7 @@ public:
   Qt::ScrollBarPolicy vpolicy;
 
   SyntaxHighlighter *syntaxHighlighter;
-  Position firstDirtyLine; // first line that needs highlighting
+  Position firstDirtyBlock; // first line that needs highlighting
 
   Gutter *gutter;
 
@@ -75,8 +76,11 @@ public:
   void calculateMetrics(const QFont & f);
 
   /// TODO: take into account tabreplace
-  TextBlock findLongestLine() const;
-  void setLongestLine(const TextBlock & block);
+  view::Line findLongestLine();
+  void setLongestLine(const view::Line & line);
+
+  int getFold(int blocknum, int from = 0) const;
+  void relayout(int blocknum);
 
   /// TODO: highlightUpToLine(view::Block l);
   // similar to checkNeedsHighlighting
@@ -85,7 +89,7 @@ public:
   void highlightLine(view::Block l);
   int invokeSyntaxHighlighter(view::Block l);
 
-  inline view::BlockInfo & blockInfo(int n) { return *blocks.at(n); }
+  inline view::BlockInfo & blockInfo(int n) const { return *blocks.at(n); }
 };
 
 } // namespace textedit

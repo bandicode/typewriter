@@ -147,8 +147,8 @@ void Block::rehighlight()
 void Block::rehighlightLater()
 {
   impl().forceHighlighting = true;
-  if (mNumber < mView->firstDirtyLine.line)
-    mView->firstDirtyLine.line = mNumber;
+  if (mNumber < mView->firstDirtyBlock.line)
+    mView->firstDirtyBlock.line = mNumber;
 }
 
 const QVector<FormatRange> & Block::formats() const
@@ -178,9 +178,17 @@ std::pair<Position, Position> Block::activeFold() const
   return std::make_pair(f.begin, f.end);
 }
 
+static int count_line_feed(const std::vector<std::unique_ptr<LineElement>> & elems)
+{
+  int n = 0;
+  for (int i(0); i < elems.size(); ++i)
+    n += elems.at(i)->isLineFeed() ? 1 : 0;
+  return n;
+}
+
 int Block::span() const
 {
-  return 1;
+  return 1 + count_line_feed(impl().display);
 }
 
 QString Block::displayedText() const
@@ -189,12 +197,6 @@ QString Block::displayedText() const
   QString ret = block().text();
   ret.replace("\t", mView->tabreplace);
   return ret;
-}
-
-int Block::columnWidth() const
-{
-  /// TODO:
-  throw std::runtime_error{ "Not implemented" };
 }
 
 Fragment Block::begin() const
@@ -376,9 +378,21 @@ const LineElement_BlockFragment & LineElement::asBlockFragment() const
   return *static_cast<const LineElement_BlockFragment*>(this);
 }
 
+LineElement_BlockFragment::LineElement_BlockFragment(int b, int e)
+  : begin(b), end(e)
+{
+
+}
+
 bool LineElement_BlockFragment::isBlockFragment() const
 {
   return true;
+}
+
+LineElement_Fold::LineElement_Fold(int id)
+  : foldid(id)
+{
+
 }
 
 bool LineElement_Fold::isFold() const
@@ -407,12 +421,12 @@ int LineElements::count() const
   return count;
 }
 
-LineElements::Iterator LineElements::begin()
+LineElements::Iterator LineElements::begin() const
 {
   return Iterator{ mView, mBlockNumber, mBlockNumber, 0 };
 }
 
-LineElements::Iterator LineElements::end()
+LineElements::Iterator LineElements::end() const
 {
   const auto & dis = mView->blockInfo(mBlockNumber).display;
   for (int i = int(dis.size()) - 1; i >= 0; --i)
@@ -442,6 +456,11 @@ bool LineElements::Iterator::isFold() const
   return mView->blockInfo(mBlockNumber).display.at(mElementIndex)->isFold();
 }
 
+int LineElements::Iterator::foldid() const
+{
+  return mView->blockInfo(mBlockNumber).display.at(mElementIndex)->asFold().foldid;
+}
+
 bool LineElements::Iterator::isBlockFragment() const
 {
   return mView->blockInfo(mBlockNumber).display.at(mElementIndex)->isBlockFragment();
@@ -460,6 +479,29 @@ int LineElements::Iterator::blockBegin() const
 int LineElements::Iterator::blockEnd() const
 {
   return mView->blockInfo(mBlockNumber).display.at(mElementIndex)->asBlockFragment().end;
+}
+
+QStringRef LineElements::Iterator::text() const
+{
+  const QString & str = mView->blockInfo(mBlockNumber).block.text();
+  return str.midRef(blockBegin(), blockEnd() - blockBegin());
+}
+
+int LineElements::Iterator::colcount() const
+{
+  if (isFold())
+    return 3;
+  return text().length() + text().count('\t') * (mView->tabreplace.size() - 1);
+}
+
+LineElements::Iterator & LineElements::Iterator::operator++()
+{
+  if (isFold())
+    mTargetBlock = mView->activeFolds.at(foldid()).end.line;
+
+  ++mElementIndex;
+
+  return *this;
 }
 
 bool LineElements::Iterator::operator==(const Iterator & other) const
@@ -518,7 +560,7 @@ Line Line::next() const
         return Line{ number() + 1, mBlockNumber, i, 0, mView };
     }
 
-    return Line{ number() + 1, mBlockNumber, -1, row() + 1, mView };
+    return Line{ number() + 1, mBlockNumber + 1, -1, 0, mView };
   }
 }
 
@@ -636,6 +678,36 @@ bool Line::isComplex() const
   return !isWidget() && !mView->blockInfo(mBlockNumber).display.empty();
 }
 
+LineElements Line::elements() const
+{
+  return LineElements(mView, mBlockNumber, mRow);
+}
+
+int Line::colcount() const
+{
+  if (isWidget())
+  {
+    return 0;
+  }
+  else if (isComplex())
+  {
+    int n = 0;
+    for (auto it = elements().begin(); it != elements().end(); ++it)
+      n += it.colcount();
+    return n;
+  }
+  else
+  {
+    return block().text().length() + block().text().count('\t') * (mView->tabreplace.size() - 1);
+  }
+}
+
+Line & Line::operator++()
+{
+  seekNext();
+  return *this;
+}
+
 void Line::notifyCharsAddedOrRemoved(const Position & pos, int added, int removed, int spanBefore)
 {
   if (pos.line > mBlockNumber)
@@ -670,7 +742,7 @@ void Line::notifyCharsAddedOrRemoved(const Position & pos, int added, int remove
 
 void Line::notifyBlockDestroyed(int linenum, const int span)
 {
-  if (mBlockNumber > linenum)
+  if (mBlockNumber < linenum)
     return;
 
   if (mBlockNumber > linenum)
@@ -736,19 +808,34 @@ Lines::Lines(TextViewImpl *view, int block)
 
 int Lines::count() const
 {
-  if (mBlock < 0)
+  if (mBlock == AllLines)
+  {
     return mView->linecount;
+  }
+  else if (mBlock == VisibleLines)
+  {
+    int howmany = mView->viewport.height() / mView->metrics.lineheight;
+    if (mView->metrics.lineheight * howmany < mView->viewport.height())
+      howmany++;
+    auto line = mView->firstLine;
+    howmany = std::min(howmany, mView->linecount - line.number());
+    return howmany;
+  }
+
   return view::Block{ mBlock, mView }.span();
 }
 
 Line Lines::begin() const
 {
+  if (mBlock == VisibleLines)
+    return mView->firstLine;
+
   return Line{ 0, std::max(0, mBlock), -1, 0, mView };
 }
 
 Line Lines::end() const
 {
-  if (mBlock < 0)
+  if (mBlock == AllLines)
   {
     const auto last_block = view::Block{ mView->blocks.size() - 1, mView };
 
@@ -770,6 +857,12 @@ Line Lines::end() const
     }
 
     return Line{ mView->linecount - 1, last_block.number(), -1, last_block.span() - 1, mView };
+  }
+  else if (mBlock == VisibleLines)
+  {
+    auto line = mView->firstLine;
+    line.seek(line.number() + count());
+    return line;
   }
   else
   {
@@ -806,8 +899,11 @@ ActiveFold::ActiveFold(const Position & b, const Position & e, const Block & el)
 TextViewImpl::TextViewImpl(const TextDocument *doc)
   : hpolicy(Qt::ScrollBarAsNeeded)
   , vpolicy(Qt::ScrollBarAlwaysOn)
-  , firstDirtyLine{-1, 0}
+  , firstDirtyBlock{-1, 0}
   , gutter(nullptr)
+  , firstLine(0, 0, -1, 0, this)
+  , longestLine(0, 0, -1, 0, this)
+  , linecount(1)
 {
   tabreplace = "    ";
 
@@ -817,8 +913,6 @@ TextViewImpl::TextViewImpl(const TextDocument *doc)
     this->blocks.append(std::make_shared<view::BlockInfo>(it));
     it = it.next();
   } while (it.isValid());
-
-  this->firstBlock = view::Block{ this };
 }
 
 void TextViewImpl::calculateMetrics(const QFont & f)
@@ -833,33 +927,84 @@ void TextViewImpl::calculateMetrics(const QFont & f)
   this->metrics.underlinepos = fm.underlinePos();
 }
 
-TextBlock TextViewImpl::findLongestLine() const
+view::Line TextViewImpl::findLongestLine()
 {
-  TextBlock result = this->firstBlock.block();
-  TextBlock it = result.next();
+  auto lines = view::Lines{ this };
+  view::Line result = lines.begin();
+  int colcount = result.colcount();
 
-  while (!it.isNull())
+  const auto end = lines.end();
+  for (auto it = this->firstLine; it != end; ++it)
   {
-    if (it.length() > result.length())
+    const int cc = it.colcount();
+    if (cc > colcount)
+    {
+      colcount = cc;
       result = it;
-
-    it = it.next();
+    }
   }
-
+ 
   return result;
 }
 
-void TextViewImpl::setLongestLine(const TextBlock & block)
+void TextViewImpl::setLongestLine(const view::Line & line)
 {
-  this->longestLine = block;
-  this->hscrollbar->setRange(0, block.length() * this->metrics.charwidth);
+  this->longestLine = line;
+  this->hscrollbar->setRange(0, line.colcount() * this->metrics.charwidth);
+}
+
+int TextViewImpl::getFold(int blocknum, int from) const
+{
+  for (int i(from); i < activeFolds.size(); ++i)
+  {
+    const auto & fi = activeFolds.at(i);
+    if (fi.begin.line > blocknum)
+      return -1;
+    else if (fi.begin.line == blocknum)
+      return i;
+  }
+  return -1;
+}
+
+void TextViewImpl::relayout(int blocknum)
+{
+  /// TODO: handle word-wrap
+  
+  int fold = getFold(blocknum);
+  if (fold == -1)
+  {
+    blockInfo(blocknum).display.clear();
+    return;
+  }
+
+  std::vector<std::unique_ptr<view::LineElement>> elems;
+  view::ActiveFold foldinfo = activeFolds.at(fold);
+  elems.push_back(std::unique_ptr<view::LineElement>(new view::LineElement_BlockFragment{ 0, foldinfo.begin.column }));
+  do 
+  {
+    elems.push_back(std::unique_ptr<view::LineElement>(new view::LineElement_Fold{ fold }));
+
+    fold = getFold(foldinfo.end.line, fold);
+
+    if (fold == -1)
+    {
+      const view::Block b{ foldinfo.end.line, this };
+      elems.push_back(std::unique_ptr<view::LineElement>(new view::LineElement_BlockFragment{ foldinfo.end.column, b.block().length() }));
+    }
+    else
+    {
+      const int blockbegin = foldinfo.end.column;
+      foldinfo = activeFolds.at(fold);
+      elems.push_back(std::unique_ptr<view::LineElement>(new view::LineElement_BlockFragment{ blockbegin, foldinfo.begin.column }));
+    }
+  } while (fold != -1);
 }
 
 void TextViewImpl::seekFirstDirtyLine(view::Block previous)
 {
   if (previous.isLast())
   {
-    this->firstDirtyLine.line = -1;
+    this->firstDirtyBlock.line = -1;
     return;
   }
 
@@ -870,22 +1015,22 @@ void TextViewImpl::seekFirstDirtyLine(view::Block previous)
 
     if (it.impl().revision != it.block().revision() || it.impl().forceHighlighting)
     {
-      this->firstDirtyLine.line = it.number();
+      this->firstDirtyBlock.line = it.number();
       return;
     }
 
   } while (!it.isLast());
 
-  this->firstDirtyLine.line = -1;
+  this->firstDirtyBlock.line = -1;
 }
 
 bool TextViewImpl::checkNeedsHighlighting(view::Block l)
 {
-  if (this->firstDirtyLine.line == -1 || !this->syntaxHighlighter->usesBlockState() || this->firstDirtyLine.line > l.number())
+  if (this->firstDirtyBlock.line == -1 || !this->syntaxHighlighter->usesBlockState() || this->firstDirtyBlock.line > l.number())
     return false;
 
   view::Block it = l;
-  it.seek(this->firstDirtyLine.line);
+  it.seek(this->firstDirtyBlock.line);
 
   while (it != l)
   {
@@ -894,32 +1039,32 @@ bool TextViewImpl::checkNeedsHighlighting(view::Block l)
     if (it.userState() == state)
     {
       this->seekFirstDirtyLine(it);
-      if (this->firstDirtyLine.line > l.number() || this->firstDirtyLine.line == -1)
+      if (this->firstDirtyBlock.line > l.number() || this->firstDirtyBlock.line == -1)
         it = l;
       else
-        it.seek(this->firstDirtyLine.line);
+        it.seek(this->firstDirtyBlock.line);
     }
     else
     {
-      this->firstDirtyLine.line += 1;
+      this->firstDirtyBlock.line += 1;
       it.seekNext();
     }
   }
 
-  return this->firstDirtyLine.line = l.number();
+  return this->firstDirtyBlock.line = l.number();
 }
 
 void TextViewImpl::highlightLine(view::Block l)
 {
-  if (this->firstDirtyLine.line == -1 || !this->syntaxHighlighter->usesBlockState())
+  if (this->firstDirtyBlock.line == -1 || !this->syntaxHighlighter->usesBlockState())
   {
     invokeSyntaxHighlighter(l);
   }
   else
   {
-    if (this->firstDirtyLine.line != -1 && this->firstDirtyLine.line <= l.number())
+    if (this->firstDirtyBlock.line != -1 && this->firstDirtyBlock.line <= l.number())
     {
-      if (this->firstDirtyLine.line == l.number())
+      if (this->firstDirtyBlock.line == l.number())
       {
         invokeSyntaxHighlighter(l);
         this->seekFirstDirtyLine(l);
@@ -930,7 +1075,7 @@ void TextViewImpl::highlightLine(view::Block l)
         const int state = l.userState();
         invokeSyntaxHighlighter(l);
         if (state != l.userState() && this->syntaxHighlighter->usesBlockState())
-          this->firstDirtyLine.line = l.isLast() ? -1 : l.number() + 1;
+          this->firstDirtyBlock.line = l.isLast() ? -1 : l.number() + 1;
       }
     }
     else
@@ -938,7 +1083,7 @@ void TextViewImpl::highlightLine(view::Block l)
       const int state = l.userState();
       invokeSyntaxHighlighter(l);
       if (state != l.userState() && this->syntaxHighlighter->usesBlockState())
-        this->firstDirtyLine.line = l.isLast() ? -1 : l.number() + 1;
+        this->firstDirtyBlock.line = l.isLast() ? -1 : l.number() + 1;
     }
   }
 }
@@ -993,7 +1138,7 @@ TextView::~TextView()
 
 const TextDocument * TextView::document() const
 {
-  return firstVisibleBlock().document();
+  return d->blocks.front()->block.document();
 }
 
 view::Blocks TextView::blocks() const
@@ -1001,14 +1146,14 @@ view::Blocks TextView::blocks() const
   return view::Blocks{ this->d.get() };
 }
 
-int TextView::firstVisibleLine() const
+view::Lines TextView::lines() const
 {
-  return d->firstBlock.number();
+  return view::Lines{ d.get() };
 }
 
-TextBlock TextView::firstVisibleBlock() const
+view::Lines TextView::visibleLines() const
 {
-  return d->firstBlock.block();
+  return view::Lines{ d.get(), view::Lines::VisibleLines };
 }
 
 void TextView::scroll(int delta)
@@ -1016,43 +1161,29 @@ void TextView::scroll(int delta)
   if (delta == 0)
     return;
 
-  while (delta > 0 && d->firstBlock.number() < document()->lineCount() - 1)
+  while (delta > 0 && d->firstLine.number() < document()->lineCount() - 1)
   {
-    d->firstBlock.seekNext();
+    d->firstLine.seekNext();
     delta -= 1;
   }
 
-  while (delta < 0 && d->firstBlock.number() > 0)
+  while (delta < 0 && d->firstLine.number() > 0)
   {
-    d->firstBlock.seekPrevious();
+    d->firstLine.seekPrevious();
     delta += 1;
   }
 
-  d->vscrollbar->setValue(d->firstBlock.number());
+  d->vscrollbar->setValue(d->firstLine.number());
 
   update();
 }
 
 void TextView::setFirstVisibleLine(int n)
 {
-  if (d->firstBlock.number() == n)
+  if (d->firstLine.number() == n)
     return;
 
-  scroll(n - firstVisibleLine());
-}
-
-int TextView::visibleLineCount() const
-{
-  int numline = d->viewport.height() / d->metrics.lineheight;
-  if (d->metrics.lineheight * d->viewport.height() < numline)
-    numline++;
-  return std::min(document()->lineCount() - firstVisibleLine(), numline);
-}
-
-int TextView::lastVisibleLine() const
-{
-  const int numline = visibleLineCount() - 1;
-  return std::min(document()->lineCount() - 1, firstVisibleLine() + numline);
+  scroll(n - visibleLines().begin().number());
 }
 
 void TextView::setFont(const QFont & f)
@@ -1096,7 +1227,7 @@ void TextView::setHorizontalScrollBar(QScrollBar *scrollbar)
   d->hscrollbar->deleteLater();
   d->hscrollbar = scrollbar;
 
-  d->hscrollbar->setRange(0, d->longestLine.length() * d->metrics.charwidth);
+  d->hscrollbar->setRange(0, d->longestLine.colcount() * d->metrics.charwidth);
   d->hscrollbar->setValue(hscroll);
 
   connect(d->hscrollbar, SIGNAL(valueChanged(int)), this, SLOT(update()));
@@ -1129,7 +1260,7 @@ void TextView::setVerticalScrollBar(QScrollBar *scrollbar)
   d->vscrollbar->deleteLater();
   d->vscrollbar = scrollbar;
   d->vscrollbar->setRange(0, document()->lineCount() - 1);
-  d->vscrollbar->setValue(d->firstBlock.number());
+  d->vscrollbar->setValue(d->firstLine.number());
   connect(d->vscrollbar, &QScrollBar::valueChanged, this, &TextView::setFirstVisibleLine);
   updateLayout();
 }
@@ -1164,49 +1295,134 @@ Position TextView::hitTest(const QPoint & pos) const
   const int column_offset = std::round((pos.x() + hscroll() - viewport().left()) / float(d->metrics.charwidth));
 
   /* Seek visible line */
-  auto it = d->firstBlock;
+  auto it = d->firstLine;
   for (int i(0); i < line_offset; ++i)
   {
     if (it.isLast())
       break;
 
-    it = it.nextVisibleLine();
+    it = it.next();
   }
 
-  /* Take into account tabulations */
-  const QString & text = it.text();
-  int col = 0;
-  for (int i(0), counter(column_offset); i < text.length() && counter > 0; ++i)
+  /* Take into account tabulations & folds */
+  if (it.isComplex())
   {
-    if (text.at(i) == QChar('\t'))
-    {
-      counter -= tabSize();
-      col += counter <= -tabSize() / 2 ? 0 : 1;
-    }
-    else
-    {
-      counter -= 1;
-      col += 1;
-    }
-  }
+    int target_block = 0;
+    int target_col = 0;
+    int counter = column_offset;
 
-  return Position{ it.number(), col };
+    for (auto elem = it.elements().begin(); elem != it.elements().end(); ++elem)
+    {
+      if (elem.isFold())
+      {
+        counter -= 3;
+        if (counter <= 0)
+          return Position{ target_block, target_col };
+      }
+      else
+      {
+        target_block = elem.block();
+        target_col = elem.blockBegin();
+        const int count = elem.blockEnd() - elem.blockBegin();
+        for (int i(0); i < count; ++i)
+        {
+          if (elem.text().at(i) == QChar('\t'))
+          {
+            counter -= tabSize();
+            target_col += counter <= -tabSize() / 2 ? 0 : 1;
+          }
+          else
+          {
+            counter -= 1;
+            target_col += 1;
+          }
+
+          if (counter <= 0)
+            return Position{ target_block, target_col };
+        }
+      }
+    }
+
+    return Position{ target_block, target_col };
+  }
+  else
+  {
+    const QString & text = it.block().text();
+    int col = 0;
+    for (int i(0), counter(column_offset); i < text.length() && counter > 0; ++i)
+    {
+      if (text.at(i) == QChar('\t'))
+      {
+        counter -= tabSize();
+        col += counter <= -tabSize() / 2 ? 0 : 1;
+      }
+      else
+      {
+        counter -= 1;
+        col += 1;
+      }
+    }
+
+    return Position{ it.number(), col };
+  }
 }
 
 QPoint TextView::mapToViewport(const Position & pos) const
 {
   /// TODO: take into account invisible lines
-  int dy = (pos.line - firstVisibleLine()) * d->metrics.lineheight + d->metrics.ascent;
-  int dx = pos.column * metrics().charwidth;
+  if (pos.line < visibleLines().begin().blockNumber())
+    return QPoint{ 0, -d->metrics.descent };
+  
+  int line_offset = 0;
+  int column_offset = 0;
 
-  if (viewport().contains(QPoint(dx - hscroll(), dy)))
+  for (auto line = visibleLines().begin(); line_offset < visibleLines().count(); ++line, ++line_offset)
   {
-    /* We need to take into account tabulations */
-    auto it = d->firstBlock;
-    it.seek(pos.line);
-    int charincrement = it.text().leftRef(pos.column).count(QChar('\t')) * (tabSize() - 1);
-    dx += charincrement * metrics().charwidth;
+    if (line.isWidget())
+      continue;
+
+    if (line.isComplex())
+    {
+      for (auto elem = line.elements().begin(); elem != line.elements().end(); ++elem)
+      {
+        if (elem.isBlockFragment())
+        {
+          if (elem.block() == pos.line)
+          {
+            if (elem.blockBegin() <= pos.column && pos.column <= elem.blockEnd())
+            {
+              // found
+              /// TODO:
+              throw std::runtime_error{ "Not implemented" };
+            }
+          }
+        }
+        else
+        {
+          const auto & fold_info = d->activeFolds.at(elem.foldid());
+          if (fold_info.begin < pos && pos < fold_info.end)
+          {
+            // found
+            /// TODO:
+            throw std::runtime_error{ "Not implemented" };
+          }
+        }
+      }
+    }
+    else
+    {
+      if (line.blockNumber() == pos.line)
+      {
+        column_offset = pos.column;
+        const int increment = line.block().text().leftRef(pos.column).count(QChar('\t')) * (tabSize() - 1);
+        column_offset += increment;
+        break;
+      }
+    }
   }
+
+  int dy = line_offset * d->metrics.lineheight + d->metrics.ascent;
+  int dx = column_offset * metrics().charwidth;
 
   return QPoint{ dx - hscroll(), dy };
 }
@@ -1277,8 +1493,16 @@ void TextView::insertFloatingWidget(QWidget *widget, const QPoint & pos)
 
 void TextView::onBlockDestroyed(int line, const TextBlock & block)
 {
+  const int span = view::Block{ line, d.get() }.span();
   d->blocks.removeAt(line);
-  d->firstBlock.notifyBlockDestroyed(line);
+  d->linecount -= span;
+  /// TODO: recompute word-wrap if needed
+  d->firstLine.notifyBlockDestroyed(line, span);
+
+  if (d->longestLine.blockNumber() == line)
+    d->setLongestLine(d->findLongestLine());
+  else
+    d->longestLine.notifyBlockDestroyed(line, span);
 
   for (auto & fold : d->activeFolds)
   {
@@ -1289,13 +1513,15 @@ void TextView::onBlockDestroyed(int line, const TextBlock & block)
     fold.endline.notifyBlockDestroyed(line);
   }
 
-  TextDocument::updatePositionOnBlockDestroyed(d->firstDirtyLine, line, block);
-  d->firstDirtyLine.column = 0;
+  TextDocument::updatePositionOnBlockDestroyed(d->firstDirtyBlock, line, block);
+  d->firstDirtyBlock.column = 0;
 
   d->vscrollbar->setMaximum(d->vscrollbar->maximum() - 1);
   updateLayout();
 
-  if (line <= lastVisibleLine())
+  const int first_line = visibleLines().begin().number();
+  const int last_line = first_line + visibleLines().count();
+  if (line <= last_line)
   {
     update();
   }
@@ -1303,8 +1529,21 @@ void TextView::onBlockDestroyed(int line, const TextBlock & block)
 
 void TextView::onBlockInserted(const Position & pos, const TextBlock & block)
 {
+  const int span = view::Block{ pos.line, d.get() }.span();
   d->blocks.insert(pos.line + 1, std::make_shared<view::BlockInfo>(block));
-  d->firstBlock.notifyBlockInserted(pos);
+
+  if (block.length() > 0)
+  {
+    d->relayout(pos.line);
+    d->relayout(pos.line + 1);
+    d->linecount += view::Block{ pos.line + 1, d.get() }.span() + view::Block{ pos.line, d.get() }.span() - span;
+  }
+  else
+  {
+    d->linecount += 1;
+  }
+
+  d->firstLine.notifyBlockInserted(pos, span);
   
   for (auto & fold : d->activeFolds)
   {
@@ -1314,13 +1553,15 @@ void TextView::onBlockInserted(const Position & pos, const TextBlock & block)
     TextDocument::updatePositionOnInsert(fold.end, pos, block);
   }
 
-  TextDocument::updatePositionOnInsert(d->firstDirtyLine, pos, block);
-  d->firstDirtyLine.column = 0;
+  TextDocument::updatePositionOnInsert(d->firstDirtyBlock, pos, block);
+  d->firstDirtyBlock.column = 0;
 
   d->vscrollbar->setMaximum(d->vscrollbar->maximum() + 1);
   updateLayout();
 
-  if (pos.line <= lastVisibleLine())
+  const int first_line = visibleLines().begin().number();
+  const int last_line = first_line + visibleLines().count();
+  if (pos.line <= last_line)
   {
     update();
   }
@@ -1328,6 +1569,12 @@ void TextView::onBlockInserted(const Position & pos, const TextBlock & block)
 
 void TextView::onContentsChange(const TextBlock & block, const Position & pos, int charsRemoved, int charsAdded)
 {
+  const int span = view::Block{ pos.line, d.get() }.span();
+  d->relayout(pos.line);
+  d->linecount += view::Block{ pos.line, d.get() }.span() - span;
+
+  d->firstLine.notifyCharsAddedOrRemoved(pos, charsAdded, charsRemoved, span);
+
   for (auto & fold : d->activeFolds)
   {
     /// TODO: check if fold is destroyed
@@ -1335,21 +1582,27 @@ void TextView::onContentsChange(const TextBlock & block, const Position & pos, i
     TextDocument::updatePositionOnContentsChange(fold.end, block, pos, charsRemoved, charsAdded);
   }
 
-  if (d->firstDirtyLine.line == -1 || d->firstDirtyLine.line > pos.line)
-    d->firstDirtyLine = Position{ pos.line, 0 };
+  if (d->firstDirtyBlock.line == -1 || d->firstDirtyBlock.line > pos.line)
+    d->firstDirtyBlock = Position{ pos.line, 0 };
 
-  if (d->longestLine == block && charsRemoved > charsAdded)
+  if (d->longestLine.blockNumber() == pos.line && charsRemoved > charsAdded)
   {
     d->setLongestLine(d->findLongestLine());
     updateLayout();
   }
-  else if (block.length() > d->longestLine.length())
+  else if (view::Line{ 0, pos.line, -1, 0, d.get() }.colcount() > d->longestLine.colcount())
   {
-    d->setLongestLine(block);
+    d->setLongestLine(view::Line{ 0, pos.line, -1, 0, d.get() });
     updateLayout();
   }
+  else
+  {
+    d->longestLine.notifyCharsAddedOrRemoved(pos, charsAdded, charsRemoved, span);
+  }
 
-  if (pos.line >= firstVisibleLine() && pos.line <= lastVisibleLine())
+  const int first_line = visibleLines().begin().number();
+  const int last_line = first_line + visibleLines().count();
+  if (pos.line >= first_line && pos.line <= last_line)
   {
     update();
   }
@@ -1369,7 +1622,7 @@ void TextView::resizeEvent(QResizeEvent *e)
 
 void TextView::wheelEvent(QWheelEvent *e)
 {
-  scroll(-e->delta());
+  scroll(-3 * e->delta() / (15 * 8));
 }
 
 void TextView::setupPainter(QPainter *painter)
@@ -1384,32 +1637,48 @@ void TextView::paint(QPainter *painter)
   painter->setPen(Qt::NoPen);
   painter->drawRect(d->viewport);
 
-  auto it = d->firstBlock;
+  auto it = d->firstLine;
 
   const int firstline = it.number();
-  const int numline = visibleLineCount();
+  const int numline = visibleLines().count();
 
   for (int i(0); i < numline; ++i)
   {
     it.seek(firstline + i);
 
-    if (it.needsRehighlight())
-      it.rehighlight();
+    //if (it.needsRehighlight())
+    //  it.rehighlight();
 
     const int baseline = i * d->metrics.lineheight + d->metrics.ascent;
     drawLine(painter, QPoint{ d->viewport.left() - d->hscrollbar->value(), baseline }, it);
   }
 }
 
-void TextView::drawLine(QPainter *painter, const QPoint & offset, view::Block line)
+void TextView::drawLine(QPainter *painter, const QPoint & offset, view::Line line)
+{
+  if (line.isWidget())
+    return;
+  else if (!line.isComplex())
+    return drawBlock(painter, offset, line.block());
+  else
+    return drawLineElements(painter, offset, line.elements());
+}
+
+void TextView::drawBlock(QPainter *painter, const QPoint & offset, view::Block block)
 {
   QPoint pt = offset;
 
-  const auto end = line.end();
-  for (auto it = line.begin(); it != end; it = it.next())
+  const auto end = block.end();
+  for (auto it = block.begin(); it != end; it = it.next())
   {
     drawFragment(painter, pt, it);
   }
+}
+
+void TextView::drawLineElements(QPainter *painter, const QPoint & offset, view::LineElements elements)
+{
+  /// TODO: 
+  throw std::runtime_error{ "Not implemented" };
 }
 
 void TextView::drawStrikeOut(QPainter *painter, const QPoint & offset, const TextFormat & fmt, int count)
@@ -1591,7 +1860,7 @@ void TextView::updateLayout()
   }
   else if (d->hpolicy == Qt::ScrollBarAsNeeded)
   {
-    if (available_width > d->longestLine.length() * d->metrics.charwidth)
+    if (available_width > d->longestLine.colcount() * d->metrics.charwidth)
     {
       hscrollbar_visible = false;
     }

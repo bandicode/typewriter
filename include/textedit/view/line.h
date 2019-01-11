@@ -26,7 +26,7 @@ class Fragment;
 class TEXTEDIT_API LineElements
 {
 public:
-  LineElements(TextViewImpl*view, int bn, int row);
+  LineElements(TextViewImpl *view, int bn, int row);
 
   class Iterator
   {
@@ -36,11 +36,17 @@ public:
     ~Iterator() = default;
 
     bool isFold() const;
+    int foldid() const;
 
     bool isBlockFragment() const;
     int block() const;
     int blockBegin() const;
     int blockEnd() const;
+    QStringRef text() const;
+
+    int colcount() const;
+
+    Iterator & operator++();
 
     Iterator & operator=(const Iterator &) = default;
     bool operator==(const Iterator & other) const;
@@ -54,8 +60,8 @@ public:
   };
 
   int count() const;
-  Iterator begin();
-  Iterator end();
+  Iterator begin() const;
+  Iterator end() const;
 
 private:
   TextViewImpl *mView;
@@ -93,6 +99,10 @@ public:
   bool isComplex() const;
   LineElements elements() const;
 
+  int colcount() const;
+
+  Line & operator++();
+
   Line & operator=(const Line & other) = default;
 
   inline bool operator==(const Line & other) const { return mNumber == other.mNumber; }
@@ -127,6 +137,11 @@ public:
   Lines(const Lines & other) = default;
   ~Lines() = default;
 
+  enum Options {
+    AllLines = -1,
+    VisibleLines = -2,
+  };
+
   int count() const;
   Line begin() const;
   Line end() const;
@@ -136,7 +151,7 @@ public:
 
 private:
   TextViewImpl *mView;
-  int mBlock; // -1 if no Block
+  int mBlock; // -1 if no Block, -2 for visible lines
 };
 
 } // namespace view

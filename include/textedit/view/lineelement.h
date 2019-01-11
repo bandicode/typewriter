@@ -53,6 +53,7 @@ public:
   int end;
 
 public:
+  LineElement_BlockFragment(int b, int e);
   virtual ~LineElement_BlockFragment() = default;
 
   bool isBlockFragment() const override;
@@ -64,6 +65,7 @@ public:
   int foldid;
 
 public:
+  LineElement_Fold(int id);
   virtual ~LineElement_Fold() = default;
 
   bool isFold() const override;

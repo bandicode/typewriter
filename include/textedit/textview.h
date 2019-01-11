@@ -20,6 +20,9 @@ namespace view
 class Fragment;
 class Block;
 class Blocks;
+class Line;
+class LineElements;
+class Lines;
 struct Metrics;
 } // namespace view
 
@@ -37,12 +40,11 @@ public:
   const TextDocument * document() const;
 
   view::Blocks blocks() const;
+  view::Lines lines() const;
+  view::Lines visibleLines() const;
 
-  int firstVisibleLine() const;
-  TextBlock firstVisibleBlock() const;
   void scroll(int delta);
-  int visibleLineCount() const;
-  int lastVisibleLine() const;
+
 public Q_SLOTS:
   void setFirstVisibleLine(int n);
 
@@ -104,7 +106,9 @@ protected:
 
   void setupPainter(QPainter *painter);
   void paint(QPainter *painter);
-  virtual void drawLine(QPainter *painter, const QPoint & offset, view::Block line);
+  virtual void drawLine(QPainter *painter, const QPoint & offset, view::Line line);
+  virtual void drawBlock(QPainter *painter, const QPoint & offset, view::Block block);
+  void drawLineElements(QPainter *painter, const QPoint & offset, view::LineElements elements);
   void drawFragment(QPainter *painter, QPoint & offset, view::Fragment fragment);
   void drawStrikeOut(QPainter *painter, const QPoint & offset, const TextFormat & fmt, int count);
   void drawUnderline(QPainter *painter, const QPoint & offset, const TextFormat & fmt, int count);

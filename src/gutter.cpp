@@ -43,9 +43,9 @@ const view::Metrics & Gutter::metrics() const
   return d->view->impl()->metrics;
 }
 
-view::Block Gutter::firstVisibleLine() const
+view::Lines Gutter::visibleLines() const
 {
-  return d->view->impl()->firstBlock;
+  return d->view->visibleLines();
 }
 
 QSize Gutter::sizeHint() const
@@ -66,20 +66,19 @@ void Gutter::paintEvent(QPaintEvent *e)
 
   painter.drawLine(this->width() - 1, 0, this->width() - 1, this->height());
 
-  auto it = firstVisibleLine();
+  auto lines = visibleLines();
   QString label = QString(" ").repeated(columnCount());
-  const int count = view()->visibleLineCount();
+  const int count = lines.count();
+  auto it = lines.begin();
 
-  for (int i(0); i < count; ++i)
+  for (int i(0); i < count; ++i, ++it)
   {
-    writeNumber(label, it.number() + 1);
+    if (it.isWidget() || it.row() != 0)
+      continue;
+
+    writeNumber(label, it.blockNumber() + 1);
 
     painter.drawText(QPoint(0, i * metrics().lineheight + metrics().ascent), label);
-
-    if (it.isLast())
-      return;
-
-    it = it.next();
   }
 }
 

@@ -86,10 +86,8 @@ public:
   bool hasActiveFold() const;
   std::pair<Position, Position> activeFold() const;
 
-  /// TODO: for when we have word-wrap
   int span() const;
   QString displayedText() const;
-  int columnWidth() const; // number of chars by line
 
   Fragment begin() const;
   Fragment end() const;
