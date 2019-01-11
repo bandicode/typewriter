@@ -44,7 +44,7 @@ class TextViewImpl
 public:
   
   view::BlockInfoList blocks;
-  view::Block firstLine;
+  view::Block firstBlock;
   TextBlock longestLine;
   int linecount;
 

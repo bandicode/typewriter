@@ -818,7 +818,7 @@ TextViewImpl::TextViewImpl(const TextDocument *doc)
     it = it.next();
   } while (it.isValid());
 
-  this->firstLine = view::Block{ this };
+  this->firstBlock = view::Block{ this };
 }
 
 void TextViewImpl::calculateMetrics(const QFont & f)
@@ -835,7 +835,7 @@ void TextViewImpl::calculateMetrics(const QFont & f)
 
 TextBlock TextViewImpl::findLongestLine() const
 {
-  TextBlock result = this->firstLine.block();
+  TextBlock result = this->firstBlock.block();
   TextBlock it = result.next();
 
   while (!it.isNull())
@@ -1003,12 +1003,12 @@ view::Blocks TextView::blocks() const
 
 int TextView::firstVisibleLine() const
 {
-  return d->firstLine.number();
+  return d->firstBlock.number();
 }
 
 TextBlock TextView::firstVisibleBlock() const
 {
-  return d->firstLine.block();
+  return d->firstBlock.block();
 }
 
 void TextView::scroll(int delta)
@@ -1016,26 +1016,26 @@ void TextView::scroll(int delta)
   if (delta == 0)
     return;
 
-  while (delta > 0 && d->firstLine.number() < document()->lineCount() - 1)
+  while (delta > 0 && d->firstBlock.number() < document()->lineCount() - 1)
   {
-    d->firstLine.seekNext();
+    d->firstBlock.seekNext();
     delta -= 1;
   }
 
-  while (delta < 0 && d->firstLine.number() > 0)
+  while (delta < 0 && d->firstBlock.number() > 0)
   {
-    d->firstLine.seekPrevious();
+    d->firstBlock.seekPrevious();
     delta += 1;
   }
 
-  d->vscrollbar->setValue(d->firstLine.number());
+  d->vscrollbar->setValue(d->firstBlock.number());
 
   update();
 }
 
 void TextView::setFirstVisibleLine(int n)
 {
-  if (d->firstLine.number() == n)
+  if (d->firstBlock.number() == n)
     return;
 
   scroll(n - firstVisibleLine());
@@ -1129,7 +1129,7 @@ void TextView::setVerticalScrollBar(QScrollBar *scrollbar)
   d->vscrollbar->deleteLater();
   d->vscrollbar = scrollbar;
   d->vscrollbar->setRange(0, document()->lineCount() - 1);
-  d->vscrollbar->setValue(d->firstLine.number());
+  d->vscrollbar->setValue(d->firstBlock.number());
   connect(d->vscrollbar, &QScrollBar::valueChanged, this, &TextView::setFirstVisibleLine);
   updateLayout();
 }
@@ -1164,7 +1164,7 @@ Position TextView::hitTest(const QPoint & pos) const
   const int column_offset = std::round((pos.x() + hscroll() - viewport().left()) / float(d->metrics.charwidth));
 
   /* Seek visible line */
-  auto it = d->firstLine;
+  auto it = d->firstBlock;
   for (int i(0); i < line_offset; ++i)
   {
     if (it.isLast())
@@ -1202,7 +1202,7 @@ QPoint TextView::mapToViewport(const Position & pos) const
   if (viewport().contains(QPoint(dx - hscroll(), dy)))
   {
     /* We need to take into account tabulations */
-    auto it = d->firstLine;
+    auto it = d->firstBlock;
     it.seek(pos.line);
     int charincrement = it.text().leftRef(pos.column).count(QChar('\t')) * (tabSize() - 1);
     dx += charincrement * metrics().charwidth;
@@ -1278,7 +1278,7 @@ void TextView::insertFloatingWidget(QWidget *widget, const QPoint & pos)
 void TextView::onBlockDestroyed(int line, const TextBlock & block)
 {
   d->blocks.removeAt(line);
-  d->firstLine.notifyBlockDestroyed(line);
+  d->firstBlock.notifyBlockDestroyed(line);
 
   for (auto & fold : d->activeFolds)
   {
@@ -1304,7 +1304,7 @@ void TextView::onBlockDestroyed(int line, const TextBlock & block)
 void TextView::onBlockInserted(const Position & pos, const TextBlock & block)
 {
   d->blocks.insert(pos.line + 1, std::make_shared<view::BlockInfo>(block));
-  d->firstLine.notifyBlockInserted(pos);
+  d->firstBlock.notifyBlockInserted(pos);
   
   for (auto & fold : d->activeFolds)
   {
@@ -1384,7 +1384,7 @@ void TextView::paint(QPainter *painter)
   painter->setPen(Qt::NoPen);
   painter->drawRect(d->viewport);
 
-  auto it = d->firstLine;
+  auto it = d->firstBlock;
 
   const int firstline = it.number();
   const int numline = visibleLineCount();

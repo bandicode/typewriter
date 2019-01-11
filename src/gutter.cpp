@@ -45,7 +45,7 @@ const view::Metrics & Gutter::metrics() const
 
 view::Block Gutter::firstVisibleLine() const
 {
-  return d->view->impl()->firstLine;
+  return d->view->impl()->firstBlock;
 }
 
 QSize Gutter::sizeHint() const
