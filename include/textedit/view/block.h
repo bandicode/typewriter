@@ -2,8 +2,8 @@
 // This file is part of the textedit library
 // For conditions of distribution and use, see copyright notice in LICENSE
 
-#ifndef TEXTEDIT_VIEW_LINE_H
-#define TEXTEDIT_VIEW_LINE_H
+#ifndef TEXTEDIT_VIEW_BLOCK_H
+#define TEXTEDIT_VIEW_BLOCK_H
 
 #include "textedit/textblock.h"
 #include "textedit/view/formatrange.h"
@@ -28,7 +28,7 @@ struct FoldPosition
   int kind;
 };
 
-struct TextLine
+struct BlockInfo
 {
   TextBlock block;
   QVector<FormatRange> formats;
@@ -38,31 +38,31 @@ struct TextLine
   QVector<FoldPosition> folds;
 
 public:
-  TextLine(const TextBlock & b);
+  BlockInfo(const TextBlock & b);
 };
 
-using LineList = QLinkedList<TextLine>;
+using BlockInfoList = QList<BlockInfo>;
 
 struct ActiveFold;
 
-class TEXTEDIT_API Line
+class TEXTEDIT_API Block
 {
 public:
-  Line();
-  Line(const Line & other);
-  ~Line();
+  Block();
+  Block(const Block & other);
+  ~Block();
   
   inline int number() const { return mNumber; }
   TextBlock block() const;
   inline const QString & text() const { return block().text(); }
 
-  Line next() const;
-  Line previous() const;
+  Block next() const;
+  Block previous() const;
   void seekNext();
   void seekPrevious();
   void seek(int num);
 
-  Line nextVisibleLine() const;
+  Block nextVisibleLine() const;
 
   bool isFirst() const;
   bool isLast() const;
@@ -87,20 +87,22 @@ public:
   Fragment begin() const;
   Fragment end() const;
 
-  TextLine & impl();
+  BlockInfo & impl();
+  const BlockInfo & impl() const;
 
-  Line & operator=(const Line & other) = default;
+  Block & operator=(const Block & other) = default;
 
-  bool operator==(const Line & other) const;
-  bool operator!=(const Line & other) const;
-  bool operator<(const Line & other) const;
+  bool operator==(const Block & other) const;
+  bool operator!=(const Block & other) const;
+  bool operator<(const Block & other) const;
 
 protected:
+  friend class Blocks;
   friend class TextView;
   friend class TextViewImpl;
 
-  Line(TextViewImpl *view);
-  Line(int num, TextViewImpl *view, LineList::iterator iter);
+  Block(TextViewImpl *view);
+  Block(int num, TextViewImpl *view);
 
   void notifyBlockDestroyed(int linenum);
   void notifyBlockInserted(const Position & pos);
@@ -109,7 +111,24 @@ protected:
 
 private:
   int mNumber;
-  LineList::iterator mIterator;
+  TextViewImpl *mView;
+};
+
+class TEXTEDIT_API Blocks
+{
+public:
+  explicit Blocks(TextViewImpl *view);
+  Blocks(const Blocks & other) = default;
+  ~Blocks() = default;
+
+  int count() const;
+  Block begin() const;
+  Block end() const;
+  Block at(int index) const;
+
+  Blocks & operator=(const Blocks & other) = default;
+
+private:
   TextViewImpl *mView;
 };
 
@@ -117,4 +136,4 @@ private:
 
 } // namespace textedit
 
-#endif // !TEXTEDIT_VIEW_LINE_H
+#endif // !TEXTEDIT_VIEW_BLOCK_H

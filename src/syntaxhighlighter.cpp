@@ -32,28 +32,28 @@ bool SyntaxHighlighter::usesBlockState() const
 
 TextBlock SyntaxHighlighter::currentBlock() const
 {
-  return d->line.block();
+  return d->block.block();
 }
 
 int SyntaxHighlighter::currentBlockState() const
 {
-  return d->line.userState();
+  return d->block.userState();
 }
 
 void SyntaxHighlighter::setCurrentBlockState(int state)
 {
-  d->line.impl().userstate = state;
+  d->block.impl().userstate = state;
 }
 
 int SyntaxHighlighter::previousBlockState() const
 {
-  return d->line.previous().userState();
+  return d->block.previous().userState();
 }
 
 void SyntaxHighlighter::createFoldPoint(int pos, int kind)
 {
   // Insert into 'folds' while maintaining the list ordered
-  auto & folds = d->line.impl().folds;
+  auto & folds = d->block.impl().folds;
 
   auto it = folds.end();
   while (it != folds.begin())
@@ -76,7 +76,7 @@ void SyntaxHighlighter::createFoldPoint(int pos, int kind)
 void SyntaxHighlighter::setFormat(int start, int count, const TextFormat & fmt)
 {
   // Insert into 'formats' while maintaining the list ordered
-  auto & formats = d->line.impl().formats;
+  auto & formats = d->block.impl().formats;
 
   auto it = formats.end();
   while (it != formats.begin())

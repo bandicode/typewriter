@@ -5,7 +5,7 @@
 #include "textedit/gutter.h"
 #include "textedit/private/gutter_p.h"
 
-#include "textedit/view/line.h"
+#include "textedit/view/block.h"
 #include "textedit/view/metrics.h"
 #include "textedit/private/textview_p.h"
 
@@ -43,7 +43,7 @@ const view::Metrics & Gutter::metrics() const
   return d->view->impl()->metrics;
 }
 
-view::Line Gutter::firstVisibleLine() const
+view::Block Gutter::firstVisibleLine() const
 {
   return d->view->impl()->firstLine;
 }

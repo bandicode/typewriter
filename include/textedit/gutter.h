@@ -14,7 +14,7 @@ namespace textedit
 
 namespace view
 {
-class Line;
+class Block;
 struct Metrics;
 } // namespace view
 
@@ -46,7 +46,7 @@ protected:
   friend class TextView;
 
   const view::Metrics & metrics() const;
-  view::Line firstVisibleLine() const;
+  view::Block firstVisibleLine() const;
 
 private:
   std::unique_ptr<GutterImpl> d;

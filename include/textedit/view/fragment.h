@@ -19,7 +19,7 @@ class TextViewImpl;
 namespace view
 {
 
-struct TextLine;
+struct BlockInfo;
 
 class TEXTEDIT_API Fragment
 {
@@ -28,7 +28,7 @@ public:
   Fragment(const Fragment & other) = default;
   ~Fragment();
 
-  Fragment(TextLine const *line, int col, QVector<FormatRange>::const_iterator iter, QVector<FormatRange>::const_iterator sentinel, TextViewImpl const *view);
+  Fragment(BlockInfo const *line, int col, QVector<FormatRange>::const_iterator iter, QVector<FormatRange>::const_iterator sentinel, TextViewImpl const *view);
   
   inline bool isNull() const { return mView == nullptr; }
 
@@ -49,7 +49,7 @@ protected:
   friend class TextViewImpl;
 
 private:
-  TextLine const *mLine;
+  BlockInfo const *mLine;
   int mColumn;
   QVector<FormatRange>::const_iterator mIterator;
   QVector<FormatRange>::const_iterator mSentinel;

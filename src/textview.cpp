@@ -20,7 +20,7 @@ namespace textedit
 namespace view
 {
 
-TextLine::TextLine(const TextBlock & b)
+BlockInfo::BlockInfo(const TextBlock & b)
   : block(b)
   , userstate(0)
   , forceHighlighting(true)
@@ -29,101 +29,72 @@ TextLine::TextLine(const TextBlock & b)
 
 }
 
-Line::Line()
+Block::Block()
   : mNumber(-1)
   , mView(nullptr)
 {
 
 }
 
-Line::Line(const Line & other)
+Block::Block(const Block & other)
   : mNumber(other.mNumber)
   , mView(other.mView)
-  , mIterator(other.mIterator)
 {
 
 }
 
-Line::Line(TextViewImpl *view)
+Block::Block(TextViewImpl *view)
   : mNumber(0)
   , mView(view)
-  , mIterator(view->lines.begin())
 {
 
 }
 
-Line::Line(int num, TextViewImpl *view, LineList::iterator iter)
+Block::Block(int num, TextViewImpl *view)
   : mNumber(num)
   , mView(view)
-  , mIterator(iter)
 {
 
 }
 
-Line::~Line()
+Block::~Block()
 {
 
 }
 
 
-TextBlock Line::block() const
+TextBlock Block::block() const
 {
-  return mIterator->block;
+  return impl().block;
 }
 
-Line Line::next() const
+Block Block::next() const
 {
-  Line ret = *this;
+  Block ret = *this;
   ret.seekNext();
   return ret;
 }
 
-Line Line::previous() const
+Block Block::previous() const
 {
-  Line ret = *this;
+  Block ret = *this;
   ret.seekPrevious();
   return ret;
 }
 
-void Line::seekNext()
+void Block::seekNext()
 {
-  TextBlock next = mIterator->block.next();
+  TextBlock next = block().next();
   Q_ASSERT(!next.isNull());
-
-  mIterator++;
-
-  while (mIterator != mView->lines.end() && !mIterator->block.isValid())
-  {
-    /// TODO: maybe erase later, the iterator might be used elsewhere
-    mIterator = mView->lines.erase(mIterator);
-  }
-
-  if (mIterator == mView->lines.end() || mIterator->block != next)
-    mIterator = mView->lines.insert(mIterator, TextLine{ next });
-
   mNumber++;
 }
 
-void Line::seekPrevious()
+void Block::seekPrevious()
 {
-  TextBlock prev = mIterator->block.previous();
-
-  mIterator--;
-
-  while (!mIterator->block.isValid())
-  {
-    /// TODO: maybe erase later, the iterator might be used elsewhere
-    mIterator = mView->lines.erase(mIterator);
-    mIterator--;
-  }
-
-  if (mIterator->block != prev)
-    mIterator = mView->lines.insert(std::next(mIterator), TextLine{ prev });
-
   mNumber--;
 }
 
-void Line::seek(int num)
+void Block::seek(int num)
 {
   if (num < mNumber)
   {
@@ -137,7 +108,7 @@ void Line::seek(int num)
   }
 }
 
-Line Line::nextVisibleLine() const
+Block Block::nextVisibleLine() const
 {
   ActiveFold f = getFold();
   if (f.begin.line != mNumber)
@@ -145,67 +116,67 @@ Line Line::nextVisibleLine() const
   return f.endline;
 }
 
-bool Line::isFirst() const
+bool Block::isFirst() const
 {
   return mNumber == 0;
 }
 
-bool Line::isLast() const
+bool Block::isLast() const
 {
   return mNumber == block().document()->lineCount() - 1;
 }
 
-bool Line::needsRehighlight() const
+bool Block::needsRehighlight() const
 {
-  return mIterator->forceHighlighting || mIterator->revision != block().revision()
+  return impl().forceHighlighting || impl().revision != block().revision()
     || mView->checkNeedsHighlighting(*this);
 }
 
-void Line::rehighlight()
+void Block::rehighlight()
 {
   mView->highlightLine(*this);
 }
 
-void Line::rehighlightLater()
+void Block::rehighlightLater()
 {
-  mIterator->forceHighlighting = true;
+  impl().forceHighlighting = true;
   if (mNumber < mView->firstDirtyLine.line)
     mView->firstDirtyLine.line = mNumber;
 }
 
-const QVector<FormatRange> & Line::formats() const
+const QVector<FormatRange> & Block::formats() const
 {
-  return mIterator->formats;
+  return impl().formats;
 }
 
-const int Line::userState() const
+const int Block::userState() const
 {
-  return mIterator->userstate;
+  return impl().userstate;
 }
 
-const QVector<FoldPosition> & Line::foldPositions() const
+const QVector<FoldPosition> & Block::foldPositions() const
 {
-  return mIterator->folds;
+  return impl().folds;
 }
 
-bool Line::hasActiveFold() const
+bool Block::hasActiveFold() const
 {
   ActiveFold f = getFold();
   return f.begin.line == mNumber;
 }
 
-std::pair<Position, Position> Line::activeFold() const
+std::pair<Position, Position> Block::activeFold() const
 {
   ActiveFold f = getFold();
   return std::make_pair(f.begin, f.end);
 }
 
-int Line::span() const
+int Block::span() const
 {
   return 1;
 }
 
-QString Line::displayedText() const
+QString Block::displayedText() const
 {
   /// TODO: take folds into account ?
   QString ret = block().text();
@@ -213,43 +184,48 @@ QString Line::displayedText() const
   return ret;
 }
 
-int Line::columnWidth() const
+int Block::columnWidth() const
 {
   /// TODO:
   throw std::runtime_error{ "Not implemented" };
 }
 
-Fragment Line::begin() const
+Fragment Block::begin() const
 {
-  return Fragment{ &(*this->mIterator), 0, formats().begin(), formats().end(), mView };
+  return Fragment{ &(impl()), 0, formats().begin(), formats().end(), mView };
 }
 
-Fragment Line::end() const
+Fragment Block::end() const
 {
-  return Fragment{ &(*this->mIterator), block().length(), formats().end(), formats().end(), mView };
+  return Fragment{ &(impl()), block().length(), formats().end(), formats().end(), mView };
 }
 
-TextLine & Line::impl()
+BlockInfo & Block::impl()
 {
-  return *mIterator;
+  return mView->blocks[mNumber];
 }
 
-bool Line::operator==(const Line & other) const
+const BlockInfo & Block::impl() const
+{
+  return mView->blocks.at(mNumber);
+}
+
+bool Block::operator==(const Block & other) const
 {
   return mNumber == other.mNumber;
 }
 
-bool Line::operator!=(const Line & other) const
+bool Block::operator!=(const Block & other) const
 {
   return mNumber != other.mNumber;
 }
 
-bool Line::operator<(const Line & other) const
+bool Block::operator<(const Block & other) const
 {
   return mNumber < other.mNumber;
 }
 
-void Line::notifyBlockDestroyed(int linenum)
+void Block::notifyBlockDestroyed(int linenum)
 {
   if (linenum < mNumber)
   {
@@ -258,17 +234,17 @@ void Line::notifyBlockDestroyed(int linenum)
   else if (linenum == mNumber)
   {
     seekPrevious();
-    mIterator->forceHighlighting = true;
+    impl().forceHighlighting = true;
   }
 }
 
-void Line::notifyBlockInserted(const Position & pos)
+void Block::notifyBlockInserted(const Position & pos)
 {
   if (pos.line < mNumber)
     mNumber += 1;
 }
 
-ActiveFold Line::getFold() const
+ActiveFold Block::getFold() const
 {
   for (const auto & f : mView->activeFolds)
   {
@@ -281,6 +257,32 @@ ActiveFold Line::getFold() const
   return ActiveFold{};
 }
 
+Blocks::Blocks(TextViewImpl *view)
+  : mView(view)
+{
+
+}
+
+int Blocks::count() const
+{
+  return mView->blocks.size();
+}
+
+Block Blocks::begin() const
+{
+  return Block{ 0, mView };
+}
+
+Block Blocks::end() const
+{
+  return Block{ mView->blocks.size(), mView };
+}
+
+Block Blocks::at(int index) const
+{
+  return Block{ std::max(std::min(index, mView->blocks.size()), 0), mView };
+}
+
 Fragment::Fragment()
 {
 
@@ -291,7 +293,7 @@ Fragment::~Fragment()
 
 }
 
-Fragment::Fragment(TextLine const *line, int col, QVector<FormatRange>::const_iterator iter, QVector<FormatRange>::const_iterator sentinel, TextViewImpl const *view)
+Fragment::Fragment(BlockInfo const *line, int col, QVector<FormatRange>::const_iterator iter, QVector<FormatRange>::const_iterator sentinel, TextViewImpl const *view)
   : mLine(line)
   , mColumn(col)
   , mIterator(iter)
@@ -348,7 +350,7 @@ ActiveFold::ActiveFold()
 
 }
 
-ActiveFold::ActiveFold(const Position & b, const Position & e, const Line & el)
+ActiveFold::ActiveFold(const Position & b, const Position & e, const Block & el)
   : begin(b)
   , end(e)
   , endline(el)
@@ -370,11 +372,11 @@ TextViewImpl::TextViewImpl(const TextDocument *doc)
   auto it = doc->firstBlock();
   do
   {
-    this->lines.append(view::TextLine{it});
+    this->blocks.append(view::BlockInfo{it});
     it = it.next();
   } while (it.isValid());
 
-  this->firstLine = view::Line{ this };
+  this->firstLine = view::Block{ this };
 }
 
 void TextViewImpl::calculateMetrics(const QFont & f)
@@ -411,7 +413,7 @@ void TextViewImpl::setLongestLine(const TextBlock & block)
   this->hscrollbar->setRange(0, block.length() * this->metrics.charwidth);
 }
 
-void TextViewImpl::seekFirstDirtyLine(view::Line previous)
+void TextViewImpl::seekFirstDirtyLine(view::Block previous)
 {
   if (previous.isLast())
   {
@@ -419,7 +421,7 @@ void TextViewImpl::seekFirstDirtyLine(view::Line previous)
     return;
   }
 
-  view::Line it = previous;
+  view::Block it = previous;
   do
   {
     it.seekNext();
@@ -435,12 +437,12 @@ void TextViewImpl::seekFirstDirtyLine(view::Line previous)
   this->firstDirtyLine.line = -1;
 }
 
-bool TextViewImpl::checkNeedsHighlighting(view::Line l)
+bool TextViewImpl::checkNeedsHighlighting(view::Block l)
 {
   if (this->firstDirtyLine.line == -1 || !this->syntaxHighlighter->usesBlockState() || this->firstDirtyLine.line > l.number())
     return false;
 
-  view::Line it = l;
+  view::Block it = l;
   it.seek(this->firstDirtyLine.line);
 
   while (it != l)
@@ -465,7 +467,7 @@ bool TextViewImpl::checkNeedsHighlighting(view::Line l)
   return this->firstDirtyLine.line = l.number();
 }
 
-void TextViewImpl::highlightLine(view::Line l)
+void TextViewImpl::highlightLine(view::Block l)
 {
   if (this->firstDirtyLine.line == -1 || !this->syntaxHighlighter->usesBlockState())
   {
@@ -499,9 +501,9 @@ void TextViewImpl::highlightLine(view::Line l)
   }
 }
 
-int TextViewImpl::invokeSyntaxHighlighter(view::Line l)
+int TextViewImpl::invokeSyntaxHighlighter(view::Block l)
 {
-  this->syntaxHighlighter->impl()->line = l;
+  this->syntaxHighlighter->impl()->block = l;
   l.impl().folds.clear();
   l.impl().formats.clear();
   this->syntaxHighlighter->highlightBlock(l.block().text());
@@ -550,6 +552,11 @@ TextView::~TextView()
 const TextDocument * TextView::document() const
 {
   return firstVisibleBlock().document();
+}
+
+view::Blocks TextView::blocks() const
+{
+  return view::Blocks{ this->d.get() };
 }
 
 int TextView::firstVisibleLine() const
@@ -828,6 +835,7 @@ void TextView::insertFloatingWidget(QWidget *widget, const QPoint & pos)
 
 void TextView::onBlockDestroyed(int line, const TextBlock & block)
 {
+  d->blocks.removeAt(line);
   d->firstLine.notifyBlockDestroyed(line);
 
   for (auto & fold : d->activeFolds)
@@ -853,6 +861,7 @@ void TextView::onBlockDestroyed(int line, const TextBlock & block)
 
 void TextView::onBlockInserted(const Position & pos, const TextBlock & block)
 {
+  d->blocks.insert(pos.line + 1, view::BlockInfo{ block });
   d->firstLine.notifyBlockInserted(pos);
   
   for (auto & fold : d->activeFolds)
@@ -950,7 +959,7 @@ void TextView::paint(QPainter *painter)
   }
 }
 
-void TextView::drawLine(QPainter *painter, const QPoint & offset, view::Line line)
+void TextView::drawLine(QPainter *painter, const QPoint & offset, view::Block line)
 {
   QPoint pt = offset;
 

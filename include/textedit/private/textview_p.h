@@ -8,7 +8,7 @@
 #include "textedit/textedit.h"
 
 #include "textedit/gutter.h"
-#include "textedit/view/line.h"
+#include "textedit/view/block.h"
 #include "textedit/view/metrics.h"
 #include "textedit/syntaxhighlighter.h"
 #include "textedit/textview.h"
@@ -27,11 +27,11 @@ struct ActiveFold
 {
   Position begin;
   Position end;
-  Line endline;
+  Block endline;
 
   ActiveFold();
   ActiveFold(const ActiveFold &) = default;
-  ActiveFold(const Position & b, const Position & e, const Line & el);
+  ActiveFold(const Position & b, const Position & e, const Block & el);
 };
 
 } // namespace view
@@ -42,8 +42,8 @@ class TextViewImpl
 {
 public:
   
-  QLinkedList<view::TextLine> lines;
-  view::Line firstLine;
+  view::BlockInfoList blocks;
+  view::Block firstLine;
   TextBlock longestLine;
 
   QFont font;
@@ -74,12 +74,12 @@ public:
   TextBlock findLongestLine() const;
   void setLongestLine(const TextBlock & block);
 
-  /// TODO: highlightUpToLine(view::Line l);
+  /// TODO: highlightUpToLine(view::Block l);
   // similar to checkNeedsHighlighting
-  void seekFirstDirtyLine(view::Line previous);
-  bool checkNeedsHighlighting(view::Line l);
-  void highlightLine(view::Line l);
-  int invokeSyntaxHighlighter(view::Line l);
+  void seekFirstDirtyLine(view::Block previous);
+  bool checkNeedsHighlighting(view::Block l);
+  void highlightLine(view::Block l);
+  int invokeSyntaxHighlighter(view::Block l);
 };
 
 } // namespace textedit

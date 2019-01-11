@@ -18,7 +18,8 @@ namespace textedit
 namespace view
 {
 class Fragment;
-class Line;
+class Block;
+class Blocks;
 struct Metrics;
 } // namespace view
 
@@ -34,6 +35,8 @@ public:
   ~TextView();
 
   const TextDocument * document() const;
+
+  view::Blocks blocks() const;
 
   int firstVisibleLine() const;
   TextBlock firstVisibleBlock() const;
@@ -101,7 +104,7 @@ protected:
 
   void setupPainter(QPainter *painter);
   void paint(QPainter *painter);
-  virtual void drawLine(QPainter *painter, const QPoint & offset, view::Line line);
+  virtual void drawLine(QPainter *painter, const QPoint & offset, view::Block line);
   void drawFragment(QPainter *painter, QPoint & offset, view::Fragment fragment);
   void drawStrikeOut(QPainter *painter, const QPoint & offset, const TextFormat & fmt, int count);
   void drawUnderline(QPainter *painter, const QPoint & offset, const TextFormat & fmt, int count);

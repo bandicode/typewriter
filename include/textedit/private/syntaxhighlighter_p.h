@@ -5,7 +5,7 @@
 #ifndef TEXTEDIT_SYNTAXHIGHLIGHTER_P_H
 #define TEXTEDIT_SYNTAXHIGHLIGHTER_P_H
 
-#include "textedit/view/line.h"
+#include "textedit/view/block.h"
 
 namespace textedit
 {
@@ -13,7 +13,7 @@ namespace textedit
 class SyntaxHighlighterImpl
 {
 public:
-  view::Line line;
+  view::Block block;
 };
 
 } // namespace textedit
