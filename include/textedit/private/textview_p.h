@@ -9,6 +9,7 @@
 
 #include "textedit/gutter.h"
 #include "textedit/view/block.h"
+#include "textedit/view/incrusted-widget.h"
 #include "textedit/view/metrics.h"
 #include "textedit/syntaxhighlighter.h"
 #include "textedit/textview.h"
@@ -45,6 +46,7 @@ public:
   view::BlockInfoList blocks;
   view::Block firstLine;
   TextBlock longestLine;
+  int linecount;
 
   QFont font;
   view::Metrics metrics;
@@ -65,6 +67,8 @@ public:
 
   Gutter *gutter;
 
+  QList<view::IncrustedWidget> widgets;
+
 public:
   TextViewImpl(const TextDocument *doc);
 
@@ -80,6 +84,8 @@ public:
   bool checkNeedsHighlighting(view::Block l);
   void highlightLine(view::Block l);
   int invokeSyntaxHighlighter(view::Block l);
+
+  inline view::BlockInfo & blockInfo(int n) { return *blocks.at(n); }
 };
 
 } // namespace textedit

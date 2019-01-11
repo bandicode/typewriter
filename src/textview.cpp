@@ -6,6 +6,8 @@
 #include "textedit/private/textview_p.h"
 
 #include "textedit/view/fragment.h"
+#include "textedit/view/line.h"
+#include "textedit/view/lineelement.h"
 #include "textedit/private/gutter_p.h"
 #include "textedit/private/syntaxhighlighter_p.h"
 
@@ -25,6 +27,11 @@ BlockInfo::BlockInfo(const TextBlock & b)
   , userstate(0)
   , forceHighlighting(true)
   , revision(-1)
+{
+
+}
+
+BlockInfo::~BlockInfo()
 {
 
 }
@@ -202,12 +209,12 @@ Fragment Block::end() const
 
 BlockInfo & Block::impl()
 {
-  return mView->blocks[mNumber];
+  return mView->blockInfo(mNumber);
 }
 
 const BlockInfo & Block::impl() const
 {
-  return mView->blocks.at(mNumber);
+  return mView->blockInfo(mNumber);
 }
 
 bool Block::operator==(const Block & other) const
@@ -343,6 +350,441 @@ bool Fragment::operator!=(const Fragment & other) const
   return mLine != other.mLine || other.mColumn != mColumn;
 }
 
+
+bool LineElement::isBlockFragment() const
+{
+  return false;
+}
+
+bool LineElement::isFold() const
+{
+  return false;
+}
+
+bool LineElement::isLineFeed() const
+{
+  return false;
+}
+
+const LineElement_Fold & LineElement::asFold() const
+{
+  return *static_cast<const LineElement_Fold*>(this);
+}
+
+const LineElement_BlockFragment & LineElement::asBlockFragment() const
+{
+  return *static_cast<const LineElement_BlockFragment*>(this);
+}
+
+bool LineElement_BlockFragment::isBlockFragment() const
+{
+  return true;
+}
+
+bool LineElement_Fold::isFold() const
+{
+  return true;
+}
+
+bool LineElement_LineFeed::isLineFeed() const
+{
+  return true;
+}
+
+
+LineElements::LineElements(TextViewImpl*view, int bn, int row)
+  : mView(view), mBlockNumber(bn), mRow(row)
+{
+
+}
+
+int LineElements::count() const
+{
+  const auto & dis = mView->blockInfo(mBlockNumber).display;
+  int count = 1;
+  for (const auto & e : dis)
+    count += e->isLineFeed() ? 1 : 0;
+  return count;
+}
+
+LineElements::Iterator LineElements::begin()
+{
+  return Iterator{ mView, mBlockNumber, mBlockNumber, 0 };
+}
+
+LineElements::Iterator LineElements::end()
+{
+  const auto & dis = mView->blockInfo(mBlockNumber).display;
+  for (int i = int(dis.size()) - 1; i >= 0; --i)
+  {
+    if (dis.at(i)->isFold())
+    {
+      const int fold_id = dis.at(i)->asFold().foldid;
+      const auto& fold_info = mView->activeFolds.at(fold_id);
+      return Iterator{ mView, mBlockNumber, fold_info.end.line, (int)dis.size() };
+    }
+  }
+
+  return Iterator{ mView, mBlockNumber, mBlockNumber, (int)dis.size() };
+}
+
+LineElements::Iterator::Iterator(TextViewImpl *view, int bn, int tb, int ei)
+  : mView(view)
+  , mBlockNumber(bn)
+  , mTargetBlock(tb)
+  , mElementIndex(ei)
+{
+  
+}
+
+bool LineElements::Iterator::isFold() const
+{
+  return mView->blockInfo(mBlockNumber).display.at(mElementIndex)->isFold();
+}
+
+bool LineElements::Iterator::isBlockFragment() const
+{
+  return mView->blockInfo(mBlockNumber).display.at(mElementIndex)->isBlockFragment();
+}
+
+int LineElements::Iterator::block() const
+{
+  return mTargetBlock;
+}
+
+int LineElements::Iterator::blockBegin() const
+{
+  return mView->blockInfo(mBlockNumber).display.at(mElementIndex)->asBlockFragment().begin;
+}
+
+int LineElements::Iterator::blockEnd() const
+{
+  return mView->blockInfo(mBlockNumber).display.at(mElementIndex)->asBlockFragment().end;
+}
+
+bool LineElements::Iterator::operator==(const Iterator & other) const
+{
+  return mBlockNumber == other.mBlockNumber && mElementIndex == other.mElementIndex;
+}
+
+bool LineElements::Iterator::operator!=(const Iterator & other) const
+{
+  return mBlockNumber != other.mBlockNumber || mElementIndex != other.mElementIndex;
+}
+
+
+Line::Line(TextViewImpl *view)
+  : mNumber(0), mBlockNumber(0), mWidgetNumber(-1), mRow(0), mView(view)
+{
+
+}
+
+Line::Line(int num, int blocknum, int widgetnum, int row, TextViewImpl *view)
+  : mNumber(num), mBlockNumber(blocknum), mWidgetNumber(widgetnum), mRow(row), mView(view)
+{
+
+}
+
+Line Line::next() const
+{
+  if (isWidget())
+  {
+    if (row() + 1 < widgetSpan())
+      return Line{ number() + 1, mBlockNumber, mWidgetNumber, row() + 1, mView };
+
+    return Line{ number() + 1, mBlockNumber + 1, -1, 0, mView };
+  }
+  else
+  {
+    if (row() + 1 < block().span())
+      return Line{ number() + 1, mBlockNumber, -1, row() + 1, mView };
+    
+    /* Check for folds */
+    const view::BlockInfo & bi = mView->blockInfo(mBlockNumber);
+    for (int i = int(bi.display.size()) - 1; i >= 0; --i)
+    {
+      if (bi.display.at(i)->isFold())
+      {
+        const int fold_id = bi.display.at(i)->asFold().foldid;
+        const int block_num = mView->activeFolds.at(fold_id).end.line + 1;
+        return Line{ number() + 1, block_num , -1, 0, mView };
+      }
+    }
+
+    /* Check for widgets */
+    for (int i(0); i < mView->widgets.size(); ++i)
+    {
+      if (mView->widgets.at(i).block == mBlockNumber)
+        return Line{ number() + 1, mBlockNumber, i, 0, mView };
+    }
+
+    return Line{ number() + 1, mBlockNumber, -1, row() + 1, mView };
+  }
+}
+
+static view::Block iterate_fold_backward(TextViewImpl *view, int fold_id)
+{
+  const auto & fold_info = view->activeFolds.at(fold_id);
+
+  if (fold_id == 0)
+    return view::Block{ fold_info.begin.line, view };
+
+  const auto & prev_fold = view->activeFolds.at(fold_id - 1);
+  if (prev_fold.end.line == fold_info.begin.line)
+    return iterate_fold_backward(view, fold_id - 1);
+
+  return view::Block{ fold_info.begin.line, view };
+}
+
+Line Line::previous() const
+{
+  if (mRow > 0)
+    return Line{ number() - 1, mBlockNumber, mWidgetNumber, row() - 1, mView };
+
+  Q_ASSERT(mRow == 0);
+
+  if (isWidget())
+  {
+    return Line{ number() - 1, mBlockNumber, -1, block().span() - 1, mView };
+  }
+  else
+  {
+    /* Check for folds */
+    for (int i = mView->activeFolds.size() - 1; i >= 0; --i)
+    {
+      const auto & fold_info = mView->activeFolds.at(i);
+      if (fold_info.end.line == mBlockNumber - 1)
+      {
+        const view::Block dest_block = iterate_fold_backward(mView, i);
+        return Line{ number() - 1, dest_block.number(), -1, dest_block.span() - 1, mView };
+      }
+    }
+
+    /* Check for widgets */
+    for (int i(0); i < mView->widgets.size(); ++i)
+    {
+      if (mView->widgets.at(i).block == mBlockNumber - 1)
+        return Line{ number() - 1, mBlockNumber - 1, i, mView->widgets.at(i).span - 1, mView };
+    }
+
+    return Line{ number() - 1, mBlockNumber - 1, -1, view::Block{mBlockNumber - 1, mView}.span() - 1, mView };
+  }
+}
+
+void Line::seekNext()
+{
+  *this = next();
+}
+
+void Line::seekPrevious()
+{
+  *this = previous();
+}
+
+void Line::seek(int num)
+{
+  num = std::max(0, std::min(num, mView->linecount - 1));
+
+  while (num < mNumber)
+    seekPrevious();
+  while (num > mNumber)
+    seekNext();
+}
+
+bool Line::isFirst() const
+{
+  return mNumber == 0;
+}
+
+bool Line::isLast() const
+{
+  return mNumber == mView->linecount - 1;
+}
+
+QWidget* Line::widget() const
+{
+  Q_ASSERT(isWidget());
+  return mView->widgets.at(mWidgetNumber).widget;
+}
+
+int Line::widgetSpan() const
+{
+  Q_ASSERT(isWidget());
+  return mView->widgets.at(mWidgetNumber).span;
+}
+
+bool Line::isBlock() const
+{
+  if (isWidget() || mRow != 0)
+    return false;
+
+  return mView->blockInfo(mBlockNumber).display.empty();
+}
+
+int Line::blockNumber() const
+{
+  return mBlockNumber;
+}
+
+view::Block Line::block() const
+{
+  return view::Block{ mBlockNumber, mView };
+}
+
+bool Line::isComplex() const
+{
+  return !isWidget() && !mView->blockInfo(mBlockNumber).display.empty();
+}
+
+void Line::notifyCharsAddedOrRemoved(const Position & pos, int added, int removed, int spanBefore)
+{
+  if (pos.line > mBlockNumber)
+    return;
+
+  if (mBlockNumber > pos.line)
+  {
+    mNumber += view::Block{ mBlockNumber, mView }.span() - spanBefore;
+  }
+  else
+  {
+    Q_ASSERT(mBlockNumber == pos.line);
+
+    const int span = view::Block{ pos.line, mView }.span();
+
+    if (isWidget())
+    {
+      const int diff = span - spanBefore;
+      mNumber += diff;
+    }
+    else
+    {
+      if (mRow >= span)
+      {
+        const int diff = 1 + mRow - span;
+        mNumber -= diff;
+        mRow -= span;
+      }
+    }
+  }
+}
+
+void Line::notifyBlockDestroyed(int linenum, const int span)
+{
+  if (mBlockNumber > linenum)
+    return;
+
+  if (mBlockNumber > linenum)
+  {
+    mBlockNumber -= 1;
+    mNumber -= span;
+  }
+  else
+  {
+    Q_ASSERT(mBlockNumber == linenum);
+
+    mBlockNumber -= 1;
+    mNumber -= span;
+
+    if (!isWidget())
+      mRow = view::Block{ mBlockNumber, mView }.span() - 1;
+  }
+}
+
+void Line::notifyBlockInserted(const Position & pos, const int spanBefore)
+{
+  if (mBlockNumber < pos.line)
+    return;
+
+  if (mBlockNumber > pos.line)
+  {
+    mBlockNumber += 1;
+
+    const int span_diff = spanBefore - view::Block{ pos.line, mView }.span();
+    Q_ASSERT(span_diff >= 0);
+    mNumber += span_diff + view::Block{ pos.line + 1, mView }.span();
+  }
+  else
+  {
+    Q_ASSERT(mBlockNumber == pos.line);
+
+    // Things get complicated here...
+    const int span = view::Block{ pos.line, mView }.span();
+
+    if (isWidget())
+    {
+      const int diff = spanBefore - span;
+      Q_ASSERT(diff >= 0);
+      mNumber -= diff;
+    }
+    else
+    {
+      if (mRow >= span)
+      {
+        const int diff = 1 + mRow - span;
+        mNumber -= diff;
+        mRow -= span;
+      }
+    }
+  }
+}
+
+Lines::Lines(TextViewImpl *view, int block)
+  : mView(view), mBlock(block)
+{
+
+}
+
+int Lines::count() const
+{
+  if (mBlock < 0)
+    return mView->linecount;
+  return view::Block{ mBlock, mView }.span();
+}
+
+Line Lines::begin() const
+{
+  return Line{ 0, std::max(0, mBlock), -1, 0, mView };
+}
+
+Line Lines::end() const
+{
+  if (mBlock < 0)
+  {
+    const auto last_block = view::Block{ mView->blocks.size() - 1, mView };
+
+    /* Check for widgets */
+    if(!mView->widgets.empty())
+    {
+      if(mView->widgets.back().block == last_block.number())
+        return Line{ mView->linecount - 1, last_block.number(), mView->widgets.size() - 1, mView->widgets.last().span - 1, mView };
+    }
+
+    /* Check for folds */
+    if (!mView->activeFolds.empty())
+    {
+      if (mView->activeFolds.back().end.line == last_block.number())
+      {
+        auto block = iterate_fold_backward(mView, mView->activeFolds.size() - 1);
+        return Line{ mView->linecount - 1, block.number(), -1, block.span() - 1, mView };
+      }
+    }
+
+    return Line{ mView->linecount - 1, last_block.number(), -1, last_block.span() - 1, mView };
+  }
+  else
+  {
+    auto b = view::Block{ mBlock, mView };
+    return Line{ b.span() - 1, b.number(), -1, b.span() - 1, mView };
+  }
+}
+
+Line Lines::at(int index) const
+{
+  auto result = begin();
+  result.seek(index);
+  return result;
+}
+
 ActiveFold::ActiveFold()
   : begin{-1, -1}
   , end{-1, -1}
@@ -372,7 +814,7 @@ TextViewImpl::TextViewImpl(const TextDocument *doc)
   auto it = doc->firstBlock();
   do
   {
-    this->blocks.append(view::BlockInfo{it});
+    this->blocks.append(std::make_shared<view::BlockInfo>(it));
     it = it.next();
   } while (it.isValid());
 
@@ -861,7 +1303,7 @@ void TextView::onBlockDestroyed(int line, const TextBlock & block)
 
 void TextView::onBlockInserted(const Position & pos, const TextBlock & block)
 {
-  d->blocks.insert(pos.line + 1, view::BlockInfo{ block });
+  d->blocks.insert(pos.line + 1, std::make_shared<view::BlockInfo>(block));
   d->firstLine.notifyBlockInserted(pos);
   
   for (auto & fold : d->activeFolds)

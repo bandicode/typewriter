@@ -21,6 +21,7 @@ namespace view
 {
 
 class Fragment;
+class LineElement;
 
 struct FoldPosition
 {
@@ -36,12 +37,15 @@ struct BlockInfo
   int revision;
   bool forceHighlighting;
   QVector<FoldPosition> folds;
+  std::vector<std::unique_ptr<LineElement>> display;
 
 public:
   BlockInfo(const TextBlock & b);
+  BlockInfo(const BlockInfo &) = delete;
+  ~BlockInfo();
 };
 
-using BlockInfoList = QList<BlockInfo>;
+using BlockInfoList = QList<std::shared_ptr<BlockInfo>>;
 
 struct ActiveFold;
 
@@ -51,6 +55,9 @@ public:
   Block();
   Block(const Block & other);
   ~Block();
+
+  Block(TextViewImpl *view);
+  Block(int num, TextViewImpl *view);
   
   inline int number() const { return mNumber; }
   TextBlock block() const;
@@ -98,11 +105,9 @@ public:
 
 protected:
   friend class Blocks;
+  friend class Line;
   friend class TextView;
   friend class TextViewImpl;
-
-  Block(TextViewImpl *view);
-  Block(int num, TextViewImpl *view);
 
   void notifyBlockDestroyed(int linenum);
   void notifyBlockInserted(const Position & pos);
