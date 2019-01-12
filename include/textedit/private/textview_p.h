@@ -89,6 +89,8 @@ public:
   int invokeSyntaxHighlighter(view::Block l);
 
   inline view::BlockInfo & blockInfo(int n) const { return *blocks.at(n); }
+
+  inline int ncol(QChar c) const { return c == QChar('\t') ? tabreplace.size() : 1; }
 };
 
 } // namespace textedit

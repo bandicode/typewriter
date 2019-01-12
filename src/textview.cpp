@@ -1321,9 +1321,41 @@ Position TextView::hitTest(const QPoint & pos) const
   }
 }
 
+static bool map_pos_complex(TextViewImpl const *view, const Position & pos, view::Line line, int & column_offset)
+{
+  for (auto elem = line.elements().begin(); elem != line.elements().end(); ++elem)
+  {
+    if (elem.isBlockFragment())
+    {
+      if (elem.block() != pos.line)
+      {
+        if (elem.blockBegin() <= pos.column && pos.column <= elem.blockEnd())
+        {
+          int count = pos.column - elem.blockBegin();
+          for (int i(0); i < count; ++i)
+            column_offset += view->ncol(elem.text().at(i));
+          return true;
+        }
+      }
+      else
+      {
+        column_offset += elem.colcount();
+      }
+    }
+    else
+    {
+      const auto & fold_info = view->activeFolds.at(elem.foldid());
+      if (fold_info.begin < pos && pos < fold_info.end)
+        return true;
+      column_offset += elem.colcount();
+    }
+  }
+
+  return false;
+}
+
 QPoint TextView::mapToViewport(const Position & pos) const
 {
-  /// TODO: take into account invisible lines
   if (pos.line < visibleLines().begin().blockNumber())
     return QPoint{ 0, -d->metrics.descent };
   
@@ -1337,31 +1369,8 @@ QPoint TextView::mapToViewport(const Position & pos) const
 
     if (line.isComplex())
     {
-      for (auto elem = line.elements().begin(); elem != line.elements().end(); ++elem)
-      {
-        if (elem.isBlockFragment())
-        {
-          if (elem.block() == pos.line)
-          {
-            if (elem.blockBegin() <= pos.column && pos.column <= elem.blockEnd())
-            {
-              // found
-              /// TODO:
-              throw std::runtime_error{ "Not implemented" };
-            }
-          }
-        }
-        else
-        {
-          const auto & fold_info = d->activeFolds.at(elem.foldid());
-          if (fold_info.begin < pos && pos < fold_info.end)
-          {
-            // found
-            /// TODO:
-            throw std::runtime_error{ "Not implemented" };
-          }
-        }
-      }
+      if (map_pos_complex(d.get(), pos, line, column_offset))
+        break;
     }
     else
     {
