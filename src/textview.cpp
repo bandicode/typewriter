@@ -115,14 +115,6 @@ void Block::seek(int num)
   }
 }
 
-Block Block::nextVisibleLine() const
-{
-  ActiveFold f = getFold();
-  if (f.begin.line != mNumber)
-    return next();
-  return f.endline;
-}
-
 bool Block::isFirst() const
 {
   return mNumber == 0;
@@ -740,7 +732,7 @@ void Line::notifyCharsAddedOrRemoved(const Position & pos, int added, int remove
   }
 }
 
-void Line::notifyBlockDestroyed(int linenum, const int span)
+void Line::notifyBlockDestroyed(int linenum, const int destroyed_span, const int prev_old_span, const int prev_new_span)
 {
   if (mBlockNumber < linenum)
     return;
@@ -748,14 +740,16 @@ void Line::notifyBlockDestroyed(int linenum, const int span)
   if (mBlockNumber > linenum)
   {
     mBlockNumber -= 1;
-    mNumber -= span;
+    mNumber -= destroyed_span;
+    mNumber += prev_new_span - prev_old_span;
   }
   else
   {
     Q_ASSERT(mBlockNumber == linenum);
 
     mBlockNumber -= 1;
-    mNumber -= span;
+    mNumber -= destroyed_span;
+    mNumber += prev_new_span - prev_old_span;
 
     if (!isWidget())
       mRow = view::Block{ mBlockNumber, mView }.span() - 1;
@@ -885,10 +879,9 @@ ActiveFold::ActiveFold()
 
 }
 
-ActiveFold::ActiveFold(const Position & b, const Position & e, const Block & el)
+ActiveFold::ActiveFold(const Position & b, const Position & e)
   : begin(b)
   , end(e)
-  , endline(el)
 {
 
 }
@@ -1493,16 +1486,22 @@ void TextView::insertFloatingWidget(QWidget *widget, const QPoint & pos)
 
 void TextView::onBlockDestroyed(int line, const TextBlock & block)
 {
-  const int span = view::Block{ line, d.get() }.span();
+  //  process destroyed block
+  const int destroyed_span = view::Block{ line, d.get() }.span();
   d->blocks.removeAt(line);
-  d->linecount -= span;
-  /// TODO: recompute word-wrap if needed
-  d->firstLine.notifyBlockDestroyed(line, span);
+  d->linecount -= destroyed_span;
+  const int prev_old_span = view::Block{ line - 1, d.get() }.span();
+  if(block.length() > 0)
+    d->relayout(line - 1);
+  const int prev_new_span = block.length() > 0 ? view::Block{ line - 1, d.get() }.span() : prev_old_span;
+  d->linecount += prev_new_span - prev_old_span;
+
+  d->firstLine.notifyBlockDestroyed(line, destroyed_span, prev_old_span, prev_new_span);
 
   if (d->longestLine.blockNumber() == line)
     d->setLongestLine(d->findLongestLine());
   else
-    d->longestLine.notifyBlockDestroyed(line, span);
+    d->longestLine.notifyBlockDestroyed(line, destroyed_span, prev_old_span, prev_new_span);
 
   for (auto & fold : d->activeFolds)
   {
@@ -1510,7 +1509,6 @@ void TextView::onBlockDestroyed(int line, const TextBlock & block)
 
     TextDocument::updatePositionOnBlockDestroyed(fold.begin, line, block);
     TextDocument::updatePositionOnBlockDestroyed(fold.end, line, block);
-    fold.endline.notifyBlockDestroyed(line);
   }
 
   TextDocument::updatePositionOnBlockDestroyed(d->firstDirtyBlock, line, block);

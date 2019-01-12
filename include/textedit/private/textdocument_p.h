@@ -49,6 +49,8 @@ public:
 protected:
   void remove_selection_singleline(const Position begin, const TextBlock & beginBlock, int count);
   void remove_selection_multiline(const Position begin, const TextBlock & beginBlock, const Position end);
+
+  void remove_block(int blocknum, TextBlock block);
 };
 
 } // namespace textedit

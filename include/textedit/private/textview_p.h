@@ -29,11 +29,10 @@ struct ActiveFold
 {
   Position begin;
   Position end;
-  Block endline;
 
   ActiveFold();
   ActiveFold(const ActiveFold &) = default;
-  ActiveFold(const Position & b, const Position & e, const Block & el);
+  ActiveFold(const Position & b, const Position & e);
 };
 
 } // namespace view

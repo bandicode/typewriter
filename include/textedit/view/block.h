@@ -69,8 +69,6 @@ public:
   void seekPrevious();
   void seek(int num);
 
-  Block nextVisibleLine() const;
-
   bool isFirst() const;
   bool isLast() const;
 

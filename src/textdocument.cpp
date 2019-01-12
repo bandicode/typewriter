@@ -139,11 +139,9 @@ void TextDocumentImpl::insertChar(Position pos, const TextBlock & block, const Q
 
   for (int i(0); i < this->cursors.count(); ++i)
   {
-    if (this->cursors[i]->pos.line == pos.line && this->cursors[i]->pos.column >= pos.column)
-      this->cursors[i]->pos.column += 1;
-
-    if (this->cursors[i]->anchor.line == pos.line && this->cursors[i]->anchor.column >= pos.column)
-      this->cursors[i]->anchor.column += 1;
+    auto *c = this->cursors[i];
+    TextDocument::updatePositionOnContentsChange(c->pos, block, pos, 0, 1);
+    TextDocument::updatePositionOnContentsChange(c->anchor, block, pos, 0, 1);
   }
 
   Q_EMIT document->contentsChange(block, pos, 0, 1);
@@ -157,11 +155,9 @@ void TextDocumentImpl::insertText(Position pos, const TextBlock & block, const Q
 
   for (int i(0); i < this->cursors.count(); ++i)
   {
-    if (this->cursors[i]->pos.line == pos.line && this->cursors[i]->pos.column >= pos.column)
-      this->cursors[i]->pos.column += str.length();
-
-    if (this->cursors[i]->anchor.line == pos.line && this->cursors[i]->anchor.column >= pos.column)
-      this->cursors[i]->anchor.column += str.length();
+    auto *c = this->cursors[i];
+    TextDocument::updatePositionOnContentsChange(c->pos, block, pos, 0, str.length());
+    TextDocument::updatePositionOnContentsChange(c->anchor, block, pos, 0, str.length());
   }
 
   Q_EMIT document->contentsChange(block, pos, 0, str.length());
@@ -175,74 +171,11 @@ void TextDocumentImpl::deleteChar(Position pos, const TextBlock & block)
     if (block == document->lastBlock())
       return;
 
-    const int blocklength = block.length();
-
-    TextBlock next = block.next();
-    block.impl()->content.append(next.text());
-    if (next == document->lastBlock())
-    {
-      this->lastBlock = block.impl();
-      block.impl()->next = nullptr;
-    }
-    else
-    {
-      next.next().impl()->previous = block.impl();
-      block.impl()->next = next.next().impl();
-    }
-
-    block.impl()->setGarbage();
-    this->lineCount -= 1;
-    Q_EMIT document->blockDestroyed(pos.line + 1, next);
-    next.impl()->previous = nullptr;
-    next.impl()->next = nullptr;
-
-    // Update cursors
-    for (int i(0); i < this->cursors.count(); ++i)
-    {
-      TextCursorImpl *c = this->cursors[i];
-
-      if (c->pos.line == pos.line + 1)
-      {
-        c->pos.line -= 1;
-        c->pos.column += blocklength;
-        c->block = block;
-      }
-      else if (c->pos.line > pos.line + 1)
-      {
-        c->pos.line -= 1;
-      }
-
-      if (c->anchor.line == pos.line + 1)
-      {
-        c->anchor.line -= 1;
-        c->anchor.column += blocklength;
-      }
-      else if (c->anchor.line > pos.line + 1)
-      {
-        c->anchor.line -= 1;
-      }
-    }
-
-    Q_EMIT document->contentsChange(block, pos, 0, next.text().length());
+    remove_block(pos.line + 1, block.next());
   }
   else
   {
-    block.impl()->content.remove(pos.column, 1);
-    block.impl()->revision += 1;
-
-    // Update cursors
-    for (int i(0); i < this->cursors.count(); ++i)
-    {
-      TextCursorImpl *c = this->cursors[i];
-
-      if (c->pos.line == pos.line && c->pos.column >= pos.column)
-        c->pos.column -= 1;
-
-      if (c->anchor.line == pos.line && c->anchor.column >= pos.column)
-        c->anchor.column -= 1;
-    }
-
-    Q_EMIT document->contentsChange(block, pos, 1, 0);
+    remove_selection_singleline(pos, block, 1);
   }
 
   Q_EMIT document->contentsChanged();
@@ -255,76 +188,11 @@ void TextDocumentImpl::deletePreviousChar(Position pos, const TextBlock & block)
     if (block == document->firstBlock())
       return;
 
-    TextBlock prev = block.previous();
-    const int prevlength = prev.length();
-
-    prev.impl()->content.append(block.text());
-    const int charsAdded = block.text().length();
-
-    if (block == document->lastBlock())
-    {
-      this->lastBlock = prev.impl();
-      prev.impl()->next = nullptr;
-    }
-    else
-    {
-      block.next().impl()->previous = prev.impl();
-      prev.impl()->next = block.next().impl();
-    }
-
-    block.impl()->setGarbage();
-    this->lineCount -= 1;
-    Q_EMIT document->blockDestroyed(pos.line, block);
-    block.impl()->previous = nullptr;
-    block.impl()->next = nullptr;
-
-    // Update cursors
-    for (int i(0); i < this->cursors.count(); ++i)
-    {
-      TextCursorImpl *c = this->cursors[i];
-
-      if (c->pos.line == pos.line)
-      {
-        c->pos.line -= 1;
-        c->pos.column += prevlength;
-        c->block = prev;
-      }
-      else if (c->pos.line > pos.line)
-      {
-        c->pos.line -= 1;
-      }
-
-      if (c->anchor.line == pos.line)
-      {
-        c->anchor.line -= 1;
-        c->anchor.column += prevlength;
-      }
-      else if (c->anchor.line > pos.line)
-      {
-        c->anchor.line -= 1;
-      }
-    }
-
-    Q_EMIT document->contentsChange(prev, Position{pos.line - 1, prevlength }, 0, charsAdded);
+    remove_block(pos.line, block);
   }
   else
   {
-    block.impl()->content.remove(pos.column - 1, 1);
-    block.impl()->revision += 1;
-
-    // Update cursors
-    for (int i(0); i < this->cursors.count(); ++i)
-    {
-      TextCursorImpl *c = this->cursors[i];
-
-      if (c->pos.line == pos.line && c->pos.column >= pos.column)
-        c->pos.column -= 1;
-
-      if (c->anchor.line == pos.line && c->anchor.column >= pos.column)
-        c->anchor.column -= 1;
-    }
-
-    Q_EMIT document->contentsChange(block, Position{ pos.line, pos.column - 1 }, 1, 0);
+    remove_selection_singleline(Position{ pos.line, pos.column - 1 }, block, 1);
   }
 
   Q_EMIT document->contentsChanged();
@@ -351,6 +219,8 @@ void TextDocumentImpl::removeSelection(const Position begin, const TextBlock & b
     /// TODO: write another overload to handle this case without having to iterate over the blocks twice.
     remove_selection_multiline(end, prev(beginBlock, begin.line - end.line), begin);
   }
+
+  Q_EMIT document->contentsChanged();
 }
 
 void TextDocumentImpl::remove_selection_singleline(const Position begin, const TextBlock & beginBlock, int count)
@@ -358,26 +228,14 @@ void TextDocumentImpl::remove_selection_singleline(const Position begin, const T
   beginBlock.impl()->content.remove(begin.column, count);
 
   // update cursors
-  auto update_cursor = [&begin, count](Position & pos) -> void
-  {
-    if (pos.line != begin.line)
-      return;
-
-    if (pos.column >= begin.column && pos.column <= begin.column + count)
-      pos.column = begin.column;
-    else if (pos.column > begin.column + count)
-      pos.column -= count;
-  };
-
   for (int i(0); i < this->cursors.count(); ++i)
   {
     TextCursorImpl *c = this->cursors[i];
-    update_cursor(c->pos);
-    update_cursor(c->anchor);
+    TextDocument::updatePositionOnContentsChange(c->pos, beginBlock, begin, count, 0);
+    TextDocument::updatePositionOnContentsChange(c->anchor, beginBlock, begin, count, 0);
   }
 
   Q_EMIT document->contentsChange(beginBlock, begin, count, 0);
-  Q_EMIT document->contentsChanged();
 }
 
 void TextDocumentImpl::remove_selection_multiline(const Position begin, const TextBlock & beginBlock, const Position end)
@@ -387,80 +245,55 @@ void TextDocumentImpl::remove_selection_multiline(const Position begin, const Te
   const int count = end.line - begin.line;
 
   // erase content on the first line
-  const int charsRemoved = beginBlock.length() - begin.column;
-  beginBlock.impl()->content.chop(charsRemoved);
+  int charsRemoved = beginBlock.length() - begin.column;
+  remove_selection_singleline(begin, beginBlock, charsRemoved);
 
   // erase all middle lines
-  TextBlock it = beginBlock;
-  for (int i(1); i <= count; ++i)
+  for (int i(1); i < count; ++i)
   {
-    it = it.next();
-    it.impl()->setGarbage();
-    this->lineCount -= 1;
-    Q_EMIT document->blockDestroyed(begin.line + i, it);
+    TextBlock nextBlock = beginBlock.next();
+    charsRemoved = nextBlock.text().length();
+    remove_selection_singleline(Position{ begin.line + 1, 0 }, nextBlock, nextBlock.length());
+    remove_block(begin.line + 1, nextBlock);
   }
 
-  // append text of the last line
-  TextBlock endBlock = it;
-  QString appendText = endBlock.text().mid(end.column);
-  beginBlock.impl()->content.append(appendText);
-  const int charsAdded = appendText.length();
+  // erase content on the last line
+  TextBlock endBlock = beginBlock.next();
+  charsRemoved = end.column;
+  remove_selection_singleline(Position{ begin.line + 1, 0 }, endBlock, charsRemoved);
+  remove_block(begin.line + 1, endBlock);
+}
 
-  // update block previous & next
-  if (endBlock == document->lastBlock())
+void TextDocumentImpl::remove_block(int blocknum, TextBlock block)
+{
+  TextBlock prev = block.previous();
+  prev.impl()->content.append(block.text());
+
+  if (this->lastBlock == block.impl())
   {
-    beginBlock.impl()->next = nullptr;
-    this->lastBlock = beginBlock.impl();
+    this->lastBlock = prev.impl();
+    prev.impl()->next = nullptr;
   }
   else
   {
-    beginBlock.impl()->next = endBlock.next().impl();
-    endBlock.next().impl()->previous = beginBlock.impl();
+    TextBlock next = block.next();
+    prev.impl()->next = next.impl();
+    next.impl()->previous = prev.impl();
   }
 
   // update cursors
-  auto update_cursor = [&begin, &end](Position & pos) -> void
-  {
-    if (pos.line == begin.line && pos.column > begin.column)
-    {
-      pos.column = begin.column;
-    }
-    else if (pos.line > begin.line && pos.line < end.line)
-    {
-      pos.line = begin.line;
-      pos.column = begin.column;
-    }
-    else if (pos.line == end.line)
-    {
-      pos.line = begin.line;
-      if (pos.column <= end.column)
-      {
-        pos.column = begin.column;
-      }
-      else
-      {
-        pos.column = pos.column - end.column + begin.column;
-      }
-    }
-    else if (pos.line > end.line)
-    {
-      pos.line -= (end.line - begin.line);
-    }
-  };
-
   for (int i(0); i < this->cursors.count(); ++i)
   {
     TextCursorImpl *c = this->cursors[i];
-
-    update_cursor(c->pos);
-    if (c->pos.line == begin.line)
-      c->block = beginBlock;
-
-    update_cursor(c->anchor);
+    TextDocument::updatePositionOnBlockDestroyed(c->pos, blocknum, block);
+    TextDocument::updatePositionOnBlockDestroyed(c->anchor, blocknum, block);
+    if (c->pos.line == blocknum - 1)
+      c->block = prev;
   }
 
-  Q_EMIT document->contentsChange(beginBlock, begin, charsRemoved, charsAdded);
-  Q_EMIT document->contentsChanged();
+  block.impl()->setGarbage();
+  this->lineCount -= 1;
+  Q_EMIT document->blockDestroyed(blocknum, block);
 }
 
 
@@ -546,7 +379,7 @@ void TextDocument::updatePositionOnBlockDestroyed(Position & pos, int linenum, c
   if (pos.line == linenum)
   {
     pos.line -= 1;
-    pos.column = block.previous().length();
+    pos.column += block.previous().length() - block.length();
   }
   else if (pos.line > linenum)
   {

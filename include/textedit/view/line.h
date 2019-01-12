@@ -119,7 +119,7 @@ protected:
   Line(int num, int blocknum, int widgetnum, int row, TextViewImpl *view);
 
   void notifyCharsAddedOrRemoved(const Position & pos, int added, int removed, int spanBefore);
-  void notifyBlockDestroyed(int linenum, const int span);
+  void notifyBlockDestroyed(int linenum, const int destroyed_span, const int prev_old_span, const int prev_new_span);
   void notifyBlockInserted(const Position & pos, const int spanBefore);
 
 private:
