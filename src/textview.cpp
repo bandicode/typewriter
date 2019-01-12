@@ -275,6 +275,11 @@ int Fragment::length() const
   return mIterator == mSentinel ? (mLine->block.length() - mColumn) : (mColumn < mIterator->start ? mIterator->start - mColumn : mIterator->length);
 }
 
+TextBlock Fragment::block() const
+{
+  return mLine->block;
+}
+
 QString Fragment::text() const
 {
   return mLine->block.text().mid(position(), length()).replace("\t", mView->tabreplace);
@@ -1631,8 +1636,43 @@ void TextView::drawBlock(QPainter *painter, const QPoint & offset, view::Block b
 
 void TextView::drawLineElements(QPainter *painter, const QPoint & offset, view::LineElements elements)
 {
+  QPoint pt = offset;
+
+  const auto end = elements.end();
+  for (auto it = elements.begin(); it != end; ++it)
+  {
+    if (it.isFold())
+      drawFoldSymbol(painter, pt, it.foldid());
+    else
+      drawBlockFragment(painter, pt, it.block(), it.blockBegin(), it.blockEnd());
+  }
+}
+
+void TextView::drawFoldSymbol(QPainter *painter, const QPoint & offset, int foldid)
+{
   /// TODO: 
   throw std::runtime_error{ "Not implemented" };
+}
+
+void TextView::drawBlockFragment(QPainter *painter, QPoint & offset, int blocknum, int begin, int end)
+{
+  view::Block block{ blocknum, d.get() };
+
+  view::Fragment frag = block.begin();
+  while (!(frag.position() <= begin && begin < frag.position() + frag.length()))
+    frag = frag.next();
+
+  int range_begin = begin;
+  int range_end = std::min(end, frag.position() + frag.length());
+
+  do
+  {
+    drawText(painter, offset, replaceTabs(block.text().mid(range_begin, range_end - range_begin)), frag.format());
+
+    range_begin = range_end;
+    frag = frag.next();
+    range_end = std::min(end, frag.position() + frag.length());
+  } while (range_begin < end);
 }
 
 void TextView::drawStrikeOut(QPainter *painter, const QPoint & offset, const TextFormat & fmt, int count)
@@ -1764,6 +1804,20 @@ void TextView::drawFragment(QPainter *painter, QPoint & offset, view::Fragment f
   offset.rx() += text.length() * d->metrics.charwidth;
 }
 
+void TextView::drawText(QPainter *painter, QPoint & offset, const QString & text, const TextFormat & format)
+{
+  applyFormat(painter, format);
+
+  painter->drawText(offset, text);
+
+  if (format.strikeOut())
+    drawStrikeOut(painter, offset, format, text.length());
+
+  drawUnderline(painter, offset, format, text.length());
+
+  offset.rx() += text.length() * d->metrics.charwidth;
+}
+
 void TextView::applyFormat(QPainter *painter, const TextFormat & fmt)
 {
   QFont f = painter->font();
@@ -1772,6 +1826,11 @@ void TextView::applyFormat(QPainter *painter, const TextFormat & fmt)
   painter->setFont(f);
   painter->setPen(QPen(fmt.textColor()));
   painter->setBrush(QBrush(fmt.backgroundColor()));
+}
+
+QString TextView::replaceTabs(QString text) const
+{
+  return text.replace(QChar('\t'), d->tabreplace);
 }
 
 const view::Metrics & TextView::metrics() const

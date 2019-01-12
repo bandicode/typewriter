@@ -109,11 +109,15 @@ protected:
   virtual void drawLine(QPainter *painter, const QPoint & offset, view::Line line);
   virtual void drawBlock(QPainter *painter, const QPoint & offset, view::Block block);
   void drawLineElements(QPainter *painter, const QPoint & offset, view::LineElements elements);
+  virtual void drawFoldSymbol(QPainter *painter, const QPoint & offset, int foldid);
+  void drawBlockFragment(QPainter *painter, QPoint & offset, int blocknum, int begin, int end);
   void drawFragment(QPainter *painter, QPoint & offset, view::Fragment fragment);
+  void drawText(QPainter *painter, QPoint & offset, const QString & text, const TextFormat & format);
   void drawStrikeOut(QPainter *painter, const QPoint & offset, const TextFormat & fmt, int count);
   void drawUnderline(QPainter *painter, const QPoint & offset, const TextFormat & fmt, int count);
   void drawWaveUnderline(QPainter *painter, const QPoint & offset, const TextFormat & fmt, int count);
   void applyFormat(QPainter *painter, const TextFormat & fmt);
+  QString replaceTabs(QString text) const;
 
   const view::Metrics & metrics() const;
 

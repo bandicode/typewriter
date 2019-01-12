@@ -36,6 +36,7 @@ public:
   int position() const;
   int length() const;
 
+  TextBlock block() const;
   QString text() const;
 
   Fragment next() const;
