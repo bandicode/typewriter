@@ -158,18 +158,6 @@ const QVector<FoldPosition> & Block::foldPositions() const
   return impl().folds;
 }
 
-bool Block::hasActiveFold() const
-{
-  ActiveFold f = getFold();
-  return f.begin.line == mNumber;
-}
-
-std::pair<Position, Position> Block::activeFold() const
-{
-  ActiveFold f = getFold();
-  return std::make_pair(f.begin, f.end);
-}
-
 static int count_line_feed(const std::vector<std::unique_ptr<LineElement>> & elems)
 {
   int n = 0;
@@ -224,38 +212,6 @@ bool Block::operator!=(const Block & other) const
 bool Block::operator<(const Block & other) const
 {
   return mNumber < other.mNumber;
-}
-
-void Block::notifyBlockDestroyed(int linenum)
-{
-  if (linenum < mNumber)
-  {
-    mNumber -= 1;
-  }
-  else if (linenum == mNumber)
-  {
-    seekPrevious();
-    impl().forceHighlighting = true;
-  }
-}
-
-void Block::notifyBlockInserted(const Position & pos)
-{
-  if (pos.line < mNumber)
-    mNumber += 1;
-}
-
-ActiveFold Block::getFold() const
-{
-  for (const auto & f : mView->activeFolds)
-  {
-    if (f.begin.line == mNumber)
-      return f;
-    else if (f.begin.line > mNumber)
-      break;
-  }
-
-  return ActiveFold{};
 }
 
 Blocks::Blocks(TextViewImpl *view)

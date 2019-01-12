@@ -81,8 +81,6 @@ public:
   const int userState() const;
 
   const QVector<FoldPosition> & foldPositions() const;
-  bool hasActiveFold() const;
-  std::pair<Position, Position> activeFold() const;
 
   int span() const;
   QString displayedText() const;
@@ -98,17 +96,6 @@ public:
   bool operator==(const Block & other) const;
   bool operator!=(const Block & other) const;
   bool operator<(const Block & other) const;
-
-protected:
-  friend class Blocks;
-  friend class Line;
-  friend class TextView;
-  friend class TextViewImpl;
-
-  void notifyBlockDestroyed(int linenum);
-  void notifyBlockInserted(const Position & pos);
-
-  ActiveFold getFold() const;
 
 private:
   int mNumber;
