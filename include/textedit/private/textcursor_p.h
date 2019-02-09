@@ -26,6 +26,12 @@ public:
 public:
   TextCursorImpl(const TextBlock & firstBlock);
   TextCursorImpl(const Position & pos, const TextBlock & b);
+
+  /* Move operations */
+  bool move_down(int n);
+  bool move_left(int n);
+  bool move_right(int n);
+  bool move_up(int n);
 };
 
 } // namespace textedit

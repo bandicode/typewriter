@@ -155,76 +155,76 @@ public:
   }
 };
 
-static bool move_down(TextCursorImpl *cursor, int n)
+bool TextCursorImpl::move_down(int n)
 {
-  const int count = std::min(n, cursor->block.document()->lineCount() - 1 - cursor->pos.line);
+  const int count = std::min(n, this->block.document()->lineCount() - 1 - this->pos.line);
 
   for (int i(0); i < count; ++i)
   {
-    cursor->pos.line += 1;
-    cursor->block = cursor->block.next();
+    this->pos.line += 1;
+    this->block = this->block.next();
   }
 
-  if (cursor->pos.column > cursor->block.length())
-    cursor->pos.column = cursor->block.length();
+  if (this->pos.column > this->block.length())
+    this->pos.column = this->block.length();
 
   return count == n;
 }
 
-static bool move_left(TextCursorImpl *cursor, int n)
+bool TextCursorImpl::move_left(int n)
 {
-  cursor->pos.column -= n;
+  this->pos.column -= n;
 
-  while (cursor->pos.column < 0 && cursor->pos.line > 0)
+  while (this->pos.column < 0 && this->pos.line > 0)
   {
-    cursor->block = cursor->block.previous();
-    cursor->pos.column += cursor->block.length() + 1;
-    cursor->pos.line -= 1;
+    this->block = this->block.previous();
+    this->pos.column += this->block.length() + 1;
+    this->pos.line -= 1;
   }
 
-  if (cursor->pos.column < 0)
+  if (this->pos.column < 0)
   {
-    cursor->pos.column = 0;
+    this->pos.column = 0;
     return false;
   }
 
   return true;
 }
 
-static bool move_right(TextCursorImpl *cursor, int n)
+bool TextCursorImpl::move_right(int n)
 {
-  const int maxline = cursor->block.document()->lineCount() - 1;
+  const int maxline = this->block.document()->lineCount() - 1;
 
-  cursor->pos.column += n;
+  this->pos.column += n;
 
-  while (cursor->pos.column > cursor->block.length() && cursor->pos.line < maxline)
+  while (this->pos.column > this->block.length() && this->pos.line < maxline)
   {
-    cursor->pos.column -= cursor->block.length() + 1;
-    cursor->block = cursor->block.next();
-    cursor->pos.line += 1;
+    this->pos.column -= this->block.length() + 1;
+    this->block = this->block.next();
+    this->pos.line += 1;
   }
 
-  if (cursor->pos.column > cursor->block.length())
+  if (this->pos.column > this->block.length())
   {
-    cursor->pos.column = cursor->block.length();
+    this->pos.column = this->block.length();
     return false;
   }
 
   return true;
 }
 
-static bool move_up(TextCursorImpl *cursor, int n)
+bool TextCursorImpl::move_up(int n)
 {
-  const int count = std::min(n, cursor->pos.line);
+  const int count = std::min(n, this->pos.line);
 
   for (int i(0); i < count; ++i)
   {
-    cursor->pos.line -= 1;
-    cursor->block = cursor->block.previous();
+    this->pos.line -= 1;
+    this->block = this->block.previous();
   }
 
-  if (cursor->pos.column > cursor->block.length())
-    cursor->pos.column = cursor->block.length();
+  if (this->pos.column > this->block.length())
+    this->pos.column = this->block.length();
 
   return count == n;
 }
@@ -238,13 +238,13 @@ bool TextCursor::movePosition(MoveOperation operation, MoveMode mode, int n)
   case NoMove:
     return true;
   case Down:
-    return move_down(mImpl, n);
+    return mImpl->move_down(n);
   case Left:
-    return move_left(mImpl, n);
+    return mImpl->move_left(n);
   case Right:
-    return move_right(mImpl, n);
+    return mImpl->move_right(n);
   case Up:
-    return move_up(mImpl, n);
+    return mImpl->move_up(n);
   default:
     return false;
   }
