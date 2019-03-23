@@ -7,6 +7,7 @@
 
 #include "textedit/textblock.h"
 #include "textedit/textcursor.h"
+#include "textedit/textdiff.h"
 
 #include <QDebug>
 
@@ -297,6 +298,7 @@ void TextDocumentImpl::remove_block(int blocknum, TextBlock block)
 }
 
 
+
 TextDocument::TextDocument(QObject *parent)
   : QObject(parent)
   , d(new TextDocumentImpl(this))
@@ -359,6 +361,64 @@ TextBlock TextDocument::findBlockByNumber(int num) const
   if (it == nullptr)
     return TextBlock{};
   return TextBlock{ this, it };
+}
+
+void TextDocument::apply(const TextDiff & diff)
+{
+  const QList<TextDiff::Diff> & diffs = diff.diffs();
+
+  if (diffs.size() == 0)
+    return;
+
+  TextCursor c{ this };
+  QList<TextCursor> cursors;
+  cursors.reserve(diffs.size());
+
+  /// TODO: add to undo stack
+
+  // Create edit cursors
+  for (const auto & d : diff.diffs())
+  {
+    c.setPosition(d.begin());
+    c.setPosition(d.end(), TextCursor::KeepAnchor);
+    cursors.push_back(c);
+  }
+
+  // Apply diff
+  for (int i(0); i < diffs.size(); ++i)
+  {
+    const auto & d = diff.diffs().at(i);
+    if (d.kind == TextDiff::Removal)
+      cursors[i].removeSelectedText();
+    else
+      cursors[i].insertText(d.text());
+  }
+}
+
+int TextDocument::availableUndoSteps() const
+{
+  return 0;
+}
+
+int TextDocument::availableRedoSteps() const
+{
+  return 0;
+}
+
+void TextDocument::undo()
+{
+  if (!isUndoAvailable())
+    return;
+
+  throw std::runtime_error{ "Not implemented" };
+}
+
+void TextDocument::redo()
+{
+  if (!isRedoAvailable())
+    return;
+
+  throw std::runtime_error{ "Not implemented" };
 }
 
 void TextDocument::updatePositionOnInsert(Position & pos, const Position & insertpos, const TextBlock & newblock)

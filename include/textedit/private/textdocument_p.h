@@ -7,6 +7,8 @@
 
 #include "textedit/textedit.h"
 
+#include "textedit/textdiff.h"
+
 #include "textedit/private/textblock_p.h"
 #include "textedit/private/textcursor_p.h"
 

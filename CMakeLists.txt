@@ -38,8 +38,8 @@ endforeach()
 ###### Tests, tools & examples
 ##################################################################
 
-#add_subdirectory(tests)
-#add_subdirectory(tools)
+add_subdirectory(tests)
+
 set(TEXTEDIT_BUILD_EXAMPLES FALSE CACHE BOOL "Check if you want to build the examples")
 if(TEXTEDIT_BUILD_EXAMPLES)
 add_subdirectory(examples)

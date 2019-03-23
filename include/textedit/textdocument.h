@@ -14,6 +14,7 @@ namespace textedit
 
 class TextBlock;
 class TextCursor;
+class TextDiff;
 
 class TextDocumentImpl;
 
@@ -32,6 +33,15 @@ public:
   TextBlock firstBlock() const;
   TextBlock lastBlock() const;
   TextBlock findBlockByNumber(int num) const;
+
+  /// TODO: validate this candidate interface 
+  void apply(const TextDiff & diff);
+  int availableUndoSteps() const;
+  inline bool isUndoAvailable() const { return availableUndoSteps() > 0; }
+  int availableRedoSteps() const;
+  inline bool isRedoAvailable() const { return availableRedoSteps() > 0; }
+  void undo();
+  void redo();
 
   static void updatePositionOnInsert(Position & pos, const Position & insertpos, const TextBlock & newblock);
   static void updatePositionOnBlockDestroyed(Position & pos, int linenum, const TextBlock & block);

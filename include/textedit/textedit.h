@@ -31,22 +31,6 @@ inline bool operator<=(const Position & lhs, const Position & rhs) { return lhs.
 inline bool operator>(const Position & lhs, const Position & rhs) { return !(lhs <= rhs); }
 inline bool operator>=(const Position & lhs, const Position & rhs) { return !(lhs < rhs); }
 
-struct TEXTEDIT_API Range
-{
-  Position start;
-  Position end;
-
-  bool contains(const Position & pos) const;
-  bool intersects(const Range & other) const;
-};
-
-TEXTEDIT_API bool operator==(const Range & lhs, const Range & rhs);
-TEXTEDIT_API bool operator!=(const Range & lhs, const Range & rhs);
-TEXTEDIT_API bool operator<(const Range & lhs, const Range & rhs);
-TEXTEDIT_API bool operator<=(const Range & lhs, const Range & rhs);
-TEXTEDIT_API bool operator>(const Range & lhs, const Range & rhs);
-TEXTEDIT_API bool operator>=(const Range & lhs, const Range & rhs);
-
 struct TEXTEDIT_API LineRange
 {
   int start;
