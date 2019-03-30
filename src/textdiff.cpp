@@ -107,6 +107,29 @@ int TextRange::seek(const Position & pos, SeekHint hint)
   return hint.index;
 }
 
+Position TextRange::map(int offset) const
+{
+  Position ret = begin();
+  int i = 0;
+
+  while (i < offset)
+  {
+    const QChar c = mText.at(i++);
+
+    if (c == '\n')
+    {
+      ret.line += 1;
+      ret.column = 0;
+    }
+    else
+    {
+      ret.column += 1;
+    }
+  }
+
+  return ret;
+}
+
 void TextDiff::Diff::clear()
 {
   content = TextRange(QString(), content.begin());
@@ -157,6 +180,40 @@ void TextDiff::Diff::mapTo(const Diff & other)
 TextDiff::Diff TextDiff::takeFirst() const
 {
   throw std::runtime_error{ "Not implemented" };
+}
+
+void TextDiff::simplify()
+{
+  if (mDiffs.size() <= 1)
+    return;
+
+  for (int i(0); i < mDiffs.size() - 1; ++i)
+  {
+    if (!mDiffs[i].isRemoval() || !mDiffs[i + 1].isInsertion() || mDiffs[i].end() != mDiffs[i + 1].begin())
+      continue;
+
+    auto& rm = mDiffs[i];
+    auto& ins = mDiffs[i + 1];
+
+    const int s = std::min(rm.content.text().length(), ins.content.text().length());
+    int nb_common = 0;
+
+    while (nb_common < s && rm.content.text().at(nb_common) == ins.content.text().at(nb_common))
+      ++nb_common;
+
+    if (nb_common == 0)
+      continue;
+
+    const Position new_begin = rm.content.map(nb_common);
+    ins.content = TextRange(ins.text().mid(nb_common), ins.begin());
+    rm.content = TextRange(rm.text().mid(nb_common), new_begin);
+
+    if (ins.isEmpty())
+      mDiffs.removeAt(i + 1);
+
+    if (rm.isEmpty())
+      mDiffs.removeAt(i);
+  }
 }
 
 TextDiff& TextDiff::operator<<(Diff d)

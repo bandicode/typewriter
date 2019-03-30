@@ -28,6 +28,7 @@ public:
   void move(const Position & start);
 
   int seek(const Position & pos);
+  Position map(int offset) const;
 
   static Position end(const Position & start, const QString & text);
 
@@ -88,6 +89,8 @@ public:
   Diff takeFirst() const;
 
   inline int agent() const { return mAgent; }
+
+  void simplify();
 
   TextDiff& operator<<(Diff d);
   TextDiff& operator<<(const TextDiff & other);

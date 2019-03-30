@@ -137,4 +137,34 @@ void TextEditTests::TestTextDiff()
   QVERIFY(td.diffs().size() == 2);
   QVERIFY(td.diffs().front() == diff::remove(pos(2), QString("23")));
   QVERIFY(td.diffs().back() == diff::insert(pos(4), QString("ab")));
+
+  /******/
+
+  td = TextDiff();
+  td << diff::remove(pos(2), QString("23456"));
+  td << diff::insert(pos(2), QString("234"));
+
+  QVERIFY(td.diffs().size() == 2);
+  QVERIFY(td.diffs().front() == diff::remove(pos(2), QString("23456")));
+  QVERIFY(td.diffs().back() == diff::insert(pos(7), QString("234")));
+
+  td.simplify();
+
+  QVERIFY(td.diffs().size() == 1);
+  QVERIFY(td.diffs().front() == diff::remove(pos(5), QString("56")));
+
+  /******/
+
+  td = TextDiff();
+  td << diff::remove(pos(2), QString("234"));
+  td << diff::insert(pos(2), QString("23456"));
+
+  QVERIFY(td.diffs().size() == 2);
+  QVERIFY(td.diffs().front() == diff::remove(pos(2), QString("234")));
+  QVERIFY(td.diffs().back() == diff::insert(pos(5), QString("23456")));
+
+  td.simplify();
+
+  QVERIFY(td.diffs().size() == 1);
+  QVERIFY(td.diffs().front() == diff::insert(pos(5), QString("56")));
 }
