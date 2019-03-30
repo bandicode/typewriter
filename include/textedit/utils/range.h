@@ -26,6 +26,8 @@ public:
   inline void setBegin(int line, int col) { mBegin = Position{ line, col }; }
   inline void setEnd(int line, int col) { mEnd = Position{ line, col }; }
 
+  bool isEmpty() const;
+
   bool contains(const Position & pos) const;
   bool contains(const Range & other) const;
 
@@ -49,14 +51,7 @@ public:
 
   static ComparisonResult comp(const Range & a, const Range & b);
 
-  bool followsImmediately(const Range & other) const;
-  bool precedesImmediately(const Range & other) const;
-  bool overlaps(const Range & other) const;
-  
-  void moveAfter(const Range & other);
   void move(const Position & pos);
-
-  static Range merge(const Range & a, const Range & b);
 
   Range & operator=(const Range &) = default;
 
@@ -72,6 +67,7 @@ TEXTEDIT_API bool operator<=(const Range & lhs, const Range & rhs);
 TEXTEDIT_API bool operator>(const Range & lhs, const Range & rhs);
 TEXTEDIT_API bool operator>=(const Range & lhs, const Range & rhs);
 
+TEXTEDIT_API Range operator|(const Range & lhs, const Range & rhs);
 TEXTEDIT_API Range operator&(const Range & lhs, const Range & rhs);
 
 } // namespace textedit

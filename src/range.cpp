@@ -24,6 +24,11 @@ Range::Range(const Position & start_pos, const Position & end_pos) :
 
 }
 
+bool Range::isEmpty() const
+{
+  return begin() == end();
+}
+
 bool Range::contains(const Position & pos) const
 {
   return pos >= begin() && pos < end();
@@ -83,37 +88,6 @@ Range::ComparisonResult Range::comp(const Range & a, const Range & b)
   }
 }
 
-bool Range::followsImmediately(const Range & other) const
-{
-  return begin() == other.end();
-}
-
-bool Range::precedesImmediately(const Range & other) const
-{
-  return end() == other.begin();
-}
-
-bool Range::overlaps(const Range & other) const
-{
-  return contains(other.begin()) || contains(other.end());
-}
-
-void Range::moveAfter(const Range & other)
-{
-  if (end().line == begin().line)
-  {
-    const int col_diff = end().column - begin().column;
-    mBegin = other.end();
-    mEnd = Position{ mBegin.line, mBegin.column + col_diff };
-  }
-  else
-  {
-    const int line_diff = end().line - begin().line;
-    mBegin = other.end();
-    mEnd.line = mBegin.line + line_diff;
-  }
-}
-
 void Range::move(const Position & pos)
 {
   if (end().line == begin().line)
@@ -128,12 +102,6 @@ void Range::move(const Position & pos)
     mBegin = pos;
     mEnd.line += mBegin.line + line_diff;
   }
-}
-
-Range Range::merge(const Range & a, const Range & b)
-{
-  assert(a.precedesImmediately(b) || a.followsImmediately(b) || a.contains(b) || b.contains(a));
-  return Range(std::min(a.begin(), b.begin()), std::max(a.end(), b.end()));
 }
 
 bool operator==(const Range & lhs, const Range & rhs)
@@ -164,6 +132,11 @@ bool operator>(const Range & lhs, const Range & rhs)
 bool operator>=(const Range & lhs, const Range & rhs)
 {
   return !(lhs < rhs);
+}
+
+Range operator|(const Range & lhs, const Range & rhs)
+{
+  return Range(std::min(lhs.begin(), rhs.begin()), std::max(lhs.end(), rhs.end()));
 }
 
 Range operator&(const Range & lhs, const Range & rhs)
