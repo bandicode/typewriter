@@ -86,7 +86,7 @@ public:
   inline const QList<Diff> & diffs() const { return mDiffs; }
   inline QList<Diff> & diffs() { return mDiffs; }
   
-  Diff takeFirst() const;
+  Diff takeFirst();
 
   inline int agent() const { return mAgent; }
 

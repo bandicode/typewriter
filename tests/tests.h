@@ -10,4 +10,5 @@ class TextEditTests : public QObject
 private slots:
   void initTestCase();
   void TestTextDiff();
+  void TestTextDiffComplex();
 };

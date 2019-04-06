@@ -177,9 +177,16 @@ void TextDiff::Diff::mapTo(const Diff & other)
   }
 }
 
-TextDiff::Diff TextDiff::takeFirst() const
+TextDiff::Diff TextDiff::takeFirst()
 {
-  throw std::runtime_error{ "Not implemented" };
+  Diff ret = mDiffs.takeFirst();
+  ret.kind = ret.isInsertion() ? Removal : Insertion;
+  for (auto & d : mDiffs)
+  {
+    d.mapTo(ret);
+  }
+  ret.kind = ret.isInsertion() ? Removal : Insertion;
+  return ret;
 }
 
 void TextDiff::simplify()

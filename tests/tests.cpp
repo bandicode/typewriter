@@ -168,3 +168,49 @@ void TextEditTests::TestTextDiff()
   QVERIFY(td.diffs().size() == 1);
   QVERIFY(td.diffs().front() == diff::insert(pos(5), QString("56")));
 }
+
+void TextEditTests::TestTextDiffComplex()
+{
+  QString text = "01a2b3c459012345";
+
+  TextDiff td1;
+  td1 << diff::insert(pos(2), QString("a"));
+  td1 << diff::insert(pos(4), QString("b"));
+  td1 << diff::insert(pos(6), QString("c"));
+  td1 << diff::remove(pos(8), QString("678"));
+  td1 << diff::insert(pos(9), QString("d"));
+
+  QVERIFY(td1.diffs().size() == 5);
+  QVERIFY(td1.diffs().front() == diff::insert(pos(2), QString("a")));
+  QVERIFY(td1.diffs().at(1) == diff::insert(pos(3), QString("b")));
+  QVERIFY(td1.diffs().at(2) == diff::insert(pos(4), QString("c")));
+  QVERIFY(td1.diffs().at(3) == diff::remove(pos(5), QString("678")));
+  QVERIFY(td1.diffs().at(4) == diff::insert(pos(9), QString("d")));
+
+  TextDiff::Diff elem = td1.takeFirst();
+  QVERIFY(elem == diff::insert(pos(2), QString("a")));
+  QVERIFY(td1.diffs().size() == 4);
+  QVERIFY(td1.diffs().front() == diff::insert(pos(4), QString("b")));
+  QVERIFY(td1.diffs().at(1) == diff::insert(pos(5), QString("c")));
+  QVERIFY(td1.diffs().at(2) == diff::remove(pos(6), QString("678")));
+  QVERIFY(td1.diffs().at(3) == diff::insert(pos(10), QString("d")));
+
+  elem = td1.takeFirst();
+  QVERIFY(elem == diff::insert(pos(4), QString("b")));
+  QVERIFY(td1.diffs().size() == 3);
+  QVERIFY(td1.diffs().front() == diff::insert(pos(6), QString("c")));
+  QVERIFY(td1.diffs().at(1) == diff::remove(pos(7), QString("678")));
+  QVERIFY(td1.diffs().at(2) == diff::insert(pos(11), QString("d")));
+
+  elem = td1.takeFirst();
+  QVERIFY(elem == diff::insert(pos(6), QString("c")));
+  QVERIFY(td1.diffs().size() == 2);
+  QVERIFY(td1.diffs().at(0) == diff::remove(pos(8), QString("678")));
+  QVERIFY(td1.diffs().at(1) == diff::insert(pos(12), QString("d")));
+
+
+  elem = td1.takeFirst();
+  QVERIFY(elem == diff::remove(pos(8), QString("678")));
+  QVERIFY(td1.diffs().size() == 1);
+  QVERIFY(td1.diffs().at(0) == diff::insert(pos(9), QString("d")));
+}
