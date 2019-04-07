@@ -23,12 +23,6 @@ namespace view
 class Fragment;
 class LineElement;
 
-struct FoldPosition
-{
-  int pos;
-  int kind;
-};
-
 struct BlockInfo
 {
   TextBlock block;
@@ -36,7 +30,6 @@ struct BlockInfo
   int userstate;
   int revision;
   bool forceHighlighting;
-  QVector<FoldPosition> folds;
   std::vector<std::unique_ptr<LineElement>> display;
 
 public:
@@ -79,8 +72,6 @@ public:
   const QVector<FormatRange> & formats() const;
 
   const int userState() const;
-
-  const QVector<FoldPosition> & foldPositions() const;
 
   int span() const;
   QString displayedText() const;

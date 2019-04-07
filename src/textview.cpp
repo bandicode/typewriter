@@ -153,11 +153,6 @@ const int Block::userState() const
   return impl().userstate;
 }
 
-const QVector<FoldPosition> & Block::foldPositions() const
-{
-  return impl().folds;
-}
-
 static int count_line_feed(const std::vector<std::unique_ptr<LineElement>> & elems)
 {
   int n = 0;
@@ -920,6 +915,46 @@ int TextViewImpl::getFold(int blocknum, int from) const
   return -1;
 }
 
+void TextViewImpl::addFold(const TextFold & f)
+{
+  this->folds.insert(f);
+
+  for (const auto & fold : this->folds)
+  {
+    if(fold.isActive())
+      relayout(fold.start().line);
+  }
+}
+
+void TextViewImpl::removeFold(int index)
+{
+  TextFold removed = this->folds.at(index);
+  this->folds.remove(this->folds.begin() + index);
+
+  if (removed.isActive())
+    relayout(removed.start().line);
+
+  for (const auto & fold : this->folds)
+  {
+    if (fold.isActive())
+      relayout(fold.start().line);
+  }
+}
+
+void TextViewImpl::activateFold(int index, bool active)
+{
+  if (this->folds.at(index).isActive() == active)
+    return;
+
+  this->folds.at(index).setActive(active);
+
+  for (const auto & fold : this->folds)
+  {
+    if (fold.isActive())
+      relayout(fold.start().line);
+  }
+}
+
 void TextViewImpl::relayout(int blocknum)
 {
   /// TODO: handle word-wrap
@@ -1045,7 +1080,6 @@ void TextViewImpl::highlightLine(view::Block l)
 int TextViewImpl::invokeSyntaxHighlighter(view::Block l)
 {
   this->syntaxHighlighter->impl()->block = l;
-  l.impl().folds.clear();
   l.impl().formats.clear();
   this->syntaxHighlighter->highlightBlock(l.block().text());
   l.impl().forceHighlighting = false;
@@ -1454,6 +1488,7 @@ void TextView::setSyntaxHighlighter(SyntaxHighlighter *highlighter)
 {
   d->syntaxHighlighter->deleteLater();
   d->syntaxHighlighter = highlighter;
+  d->syntaxHighlighter->impl()->view = this;
 }
 
 void TextView::insertWidget(int line, int num, QWidget *w)

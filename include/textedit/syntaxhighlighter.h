@@ -13,6 +13,8 @@
 namespace textedit
 {
 
+class TextFold;
+
 class SyntaxHighlighterImpl;
 
 class TEXTEDIT_API SyntaxHighlighter : public QObject
@@ -21,16 +23,6 @@ class TEXTEDIT_API SyntaxHighlighter : public QObject
 public:
   SyntaxHighlighter(QObject *parent = nullptr);
   virtual ~SyntaxHighlighter();
-
-  enum FoldKind {
-    NoFold = 0,
-    LeftParFold = 1,
-    RightParFold = -1,
-    LeftBraceFold = 2,
-    RightBraceFold = -2,
-    LeftBracketFold = 3,
-    RightBracketFold = -3,
-  };
 
   virtual void highlightBlock(const QString & text);
   virtual bool usesBlockState() const;
@@ -43,8 +35,12 @@ protected:
   void setCurrentBlockState(int state);
   int previousBlockState() const;
 
-  void createFoldPoint(int pos, int kind);
   void setFormat(int start, int count, const TextFormat & fmt);
+
+protected:
+  void createFold(const TextFold & f);
+  void destroyFold(const TextFold &f);
+  void destroyFold(int index);
 
 private:
   std::unique_ptr<SyntaxHighlighterImpl> d;

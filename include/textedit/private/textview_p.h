@@ -66,6 +66,10 @@ public:
   void setLongestLine(const view::Line & line);
 
   int getFold(int blocknum, int from = 0) const;
+  void addFold(const TextFold & f);
+  void removeFold(int index);
+  void activateFold(int index, bool active = true);
+
   void relayout(int blocknum);
 
   /// TODO: highlightUpToLine(view::Block l);

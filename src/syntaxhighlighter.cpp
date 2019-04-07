@@ -5,6 +5,9 @@
 #include "textedit/syntaxhighlighter.h"
 #include "textedit/private/syntaxhighlighter_p.h"
 
+#include "textedit/textview.h"
+#include "textedit/private/textview_p.h"
+
 namespace textedit
 {
 
@@ -50,29 +53,6 @@ int SyntaxHighlighter::previousBlockState() const
   return d->block.previous().userState();
 }
 
-void SyntaxHighlighter::createFoldPoint(int pos, int kind)
-{
-  // Insert into 'folds' while maintaining the list ordered
-  auto & folds = d->block.impl().folds;
-
-  auto it = folds.end();
-  while (it != folds.begin())
-  {
-    auto prev_it = std::prev(it);
-    if (pos > prev_it->pos)
-    {
-      folds.insert(it, view::FoldPosition{ pos, kind });
-      return;
-    }
-    else
-    {
-      it = prev_it;
-    }
-  }
-
-  folds.insert(it, view::FoldPosition{ pos, kind });
-}
-
 void SyntaxHighlighter::setFormat(int start, int count, const TextFormat & fmt)
 {
   // Insert into 'formats' while maintaining the list ordered
@@ -94,6 +74,27 @@ void SyntaxHighlighter::setFormat(int start, int count, const TextFormat & fmt)
   }
 
   formats.insert(it, view::FormatRange{ fmt, start, count });
+}
+
+void SyntaxHighlighter::createFold(const TextFold & f)
+{
+  d->view->impl()->addFold(f);
+}
+
+void SyntaxHighlighter::destroyFold(const TextFold &f)
+{
+  const auto& folds = d->view->folds();
+
+  for (int i(0); i < folds.size(); ++i)
+  {
+    if (folds.at(i) == f)
+      destroyFold(i);
+  }
+}
+
+void SyntaxHighlighter::destroyFold(int index)
+{
+  d->view->impl()->removeFold(index);
 }
 
 } // namespace textedit

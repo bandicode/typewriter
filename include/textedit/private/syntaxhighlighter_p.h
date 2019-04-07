@@ -14,6 +14,7 @@ class SyntaxHighlighterImpl
 {
 public:
   view::Block block;
+  TextView* view;
 };
 
 } // namespace textedit
