@@ -161,7 +161,7 @@ const QVector<FoldPosition> & Block::foldPositions() const
 static int count_line_feed(const std::vector<std::unique_ptr<LineElement>> & elems)
 {
   int n = 0;
-  for (int i(0); i < elems.size(); ++i)
+  for (size_t i(0); i < elems.size(); ++i)
     n += elems.at(i)->isLineFeed() ? 1 : 0;
   return n;
 }
@@ -387,8 +387,8 @@ LineElements::Iterator LineElements::end() const
     if (dis.at(i)->isFold())
     {
       const int fold_id = dis.at(i)->asFold().foldid;
-      const auto& fold_info = mView->activeFolds.at(fold_id);
-      return Iterator{ mView, mBlockNumber, fold_info.end.line, (int)dis.size() };
+      const auto& fold_info = mView->folds.at(fold_id);
+      return Iterator{ mView, mBlockNumber, fold_info.end().line, (int)dis.size() };
     }
   }
 
@@ -450,7 +450,7 @@ int LineElements::Iterator::colcount() const
 LineElements::Iterator & LineElements::Iterator::operator++()
 {
   if (isFold())
-    mTargetBlock = mView->activeFolds.at(foldid()).end.line;
+    mTargetBlock = mView->folds.at(foldid()).end().line;
 
   ++mElementIndex;
 
@@ -501,7 +501,7 @@ Line Line::next() const
       if (bi.display.at(i)->isFold())
       {
         const int fold_id = bi.display.at(i)->asFold().foldid;
-        const int block_num = mView->activeFolds.at(fold_id).end.line + 1;
+        const int block_num = mView->folds.at(fold_id).end().line + 1;
         return Line{ number() + 1, block_num , -1, 0, mView };
       }
     }
@@ -517,18 +517,31 @@ Line Line::next() const
   }
 }
 
+static int prev_active_fold_index(TextViewImpl *view, int fold_id)
+{
+  for (int i(fold_id - 1); i >= 0; --i)
+  {
+    if (view->folds.at(i).isActive())
+      return i;
+  }
+
+  return -1;
+}
+
 static view::Block iterate_fold_backward(TextViewImpl *view, int fold_id)
 {
-  const auto & fold_info = view->activeFolds.at(fold_id);
+  const auto & fold_info = view->folds.at(fold_id);
 
-  if (fold_id == 0)
-    return view::Block{ fold_info.begin.line, view };
+  const int prev_active_fold = prev_active_fold_index(view, fold_id);
 
-  const auto & prev_fold = view->activeFolds.at(fold_id - 1);
-  if (prev_fold.end.line == fold_info.begin.line)
-    return iterate_fold_backward(view, fold_id - 1);
+  if (prev_active_fold == -1)
+    return view::Block{ fold_info.start().line, view };
 
-  return view::Block{ fold_info.begin.line, view };
+  const auto & prev_fold = view->folds.at(prev_active_fold);
+  if (prev_fold.end().line == fold_info.start().line)
+    return iterate_fold_backward(view, prev_active_fold);
+
+  return view::Block{ fold_info.start().line, view };
 }
 
 Line Line::previous() const
@@ -545,10 +558,10 @@ Line Line::previous() const
   else
   {
     /* Check for folds */
-    for (int i = mView->activeFolds.size() - 1; i >= 0; --i)
+    for (int i = mView->folds.size() - 1; i >= 0; --i)
     {
-      const auto & fold_info = mView->activeFolds.at(i);
-      if (fold_info.end.line == mBlockNumber - 1)
+      const auto & fold_info = mView->folds.at(i);
+      if (fold_info.isActive() && fold_info.end().line == mBlockNumber - 1)
       {
         const view::Block dest_block = iterate_fold_backward(mView, i);
         return Line{ number() - 1, dest_block.number(), -1, dest_block.span() - 1, mView };
@@ -802,11 +815,11 @@ Line Lines::end() const
     }
 
     /* Check for folds */
-    if (!mView->activeFolds.empty())
+    if (mView->folds.activeCount() > 0)
     {
-      if (mView->activeFolds.back().end.line == last_block.number())
+      if (mView->folds.activeBack().end().line == last_block.number())
       {
-        auto block = iterate_fold_backward(mView, mView->activeFolds.size() - 1);
+        auto block = iterate_fold_backward(mView, mView->folds.lastActiveIndex());
         return Line{ mView->linecount - 1, block.number(), -1, block.span() - 1, mView };
       }
     }
@@ -831,20 +844,6 @@ Line Lines::at(int index) const
   auto result = begin();
   result.seek(index);
   return result;
-}
-
-ActiveFold::ActiveFold()
-  : begin{-1, -1}
-  , end{-1, -1}
-{
-
-}
-
-ActiveFold::ActiveFold(const Position & b, const Position & e)
-  : begin(b)
-  , end(e)
-{
-
 }
 
 } // namespace view
@@ -910,12 +909,12 @@ void TextViewImpl::setLongestLine(const view::Line & line)
 
 int TextViewImpl::getFold(int blocknum, int from) const
 {
-  for (int i(from); i < activeFolds.size(); ++i)
+  for (int i(from); i < folds.size(); ++i)
   {
-    const auto & fi = activeFolds.at(i);
-    if (fi.begin.line > blocknum)
+    const auto & fi = folds.at(i);
+    if (fi.start().line > blocknum)
       return -1;
-    else if (fi.begin.line == blocknum)
+    else if (fi.start().line == blocknum)
       return i;
   }
   return -1;
@@ -933,24 +932,24 @@ void TextViewImpl::relayout(int blocknum)
   }
 
   std::vector<std::unique_ptr<view::LineElement>> elems;
-  view::ActiveFold foldinfo = activeFolds.at(fold);
-  elems.push_back(std::unique_ptr<view::LineElement>(new view::LineElement_BlockFragment{ 0, foldinfo.begin.column }));
+  TextFold foldinfo = folds.at(fold);
+  elems.push_back(std::unique_ptr<view::LineElement>(new view::LineElement_BlockFragment{ 0, foldinfo.start().column }));
   do 
   {
     elems.push_back(std::unique_ptr<view::LineElement>(new view::LineElement_Fold{ fold }));
 
-    fold = getFold(foldinfo.end.line, fold);
+    fold = getFold(foldinfo.end().line, fold);
 
     if (fold == -1)
     {
-      const view::Block b{ foldinfo.end.line, this };
-      elems.push_back(std::unique_ptr<view::LineElement>(new view::LineElement_BlockFragment{ foldinfo.end.column, b.block().length() }));
+      const view::Block b{ foldinfo.end().line, this };
+      elems.push_back(std::unique_ptr<view::LineElement>(new view::LineElement_BlockFragment{ foldinfo.end().column, b.block().length() }));
     }
     else
     {
-      const int blockbegin = foldinfo.end.column;
-      foldinfo = activeFolds.at(fold);
-      elems.push_back(std::unique_ptr<view::LineElement>(new view::LineElement_BlockFragment{ blockbegin, foldinfo.begin.column }));
+      const int blockbegin = foldinfo.end().column;
+      foldinfo = folds.at(fold);
+      elems.push_back(std::unique_ptr<view::LineElement>(new view::LineElement_BlockFragment{ blockbegin, foldinfo.start().column }));
     }
   } while (fold != -1);
 }
@@ -1356,8 +1355,8 @@ static bool map_pos_complex(TextViewImpl const *view, const Position & pos, view
     }
     else
     {
-      const auto & fold_info = view->activeFolds.at(elem.foldid());
-      if (fold_info.begin < pos && pos < fold_info.end)
+      const auto & fold_info = view->folds.at(elem.foldid());
+      if (fold_info.start() < pos && pos < fold_info.end())
         return true;
       column_offset += elem.colcount();
     }
@@ -1424,6 +1423,15 @@ void TextView::unfold(int line)
   throw std::runtime_error{ "Not implemented" };
 }
 
+const TextFoldList& TextView::folds() const
+{
+  return d->folds;
+}
+
+bool TextView::hasActiveFolds() const
+{
+  return d->folds.lastActiveIndex() != -1;
+}
 
 const TextFormat & TextView::defaultFormat() const
 {
@@ -1485,14 +1493,6 @@ void TextView::onBlockDestroyed(int line, const TextBlock & block)
   else
     d->longestLine.notifyBlockDestroyed(line, destroyed_span, prev_old_span, prev_new_span);
 
-  for (auto & fold : d->activeFolds)
-  {
-    /// TODO: check if fold is destroyed
-
-    TextDocument::updatePositionOnBlockDestroyed(fold.begin, line, block);
-    TextDocument::updatePositionOnBlockDestroyed(fold.end, line, block);
-  }
-
   TextDocument::updatePositionOnBlockDestroyed(d->firstDirtyBlock, line, block);
   d->firstDirtyBlock.column = 0;
 
@@ -1524,14 +1524,6 @@ void TextView::onBlockInserted(const Position & pos, const TextBlock & block)
   }
 
   d->firstLine.notifyBlockInserted(pos, span);
-  
-  for (auto & fold : d->activeFolds)
-  {
-    /// TODO: check if fold is destroyed
-
-    TextDocument::updatePositionOnInsert(fold.begin, pos, block);
-    TextDocument::updatePositionOnInsert(fold.end, pos, block);
-  }
 
   TextDocument::updatePositionOnInsert(d->firstDirtyBlock, pos, block);
   d->firstDirtyBlock.column = 0;
@@ -1554,13 +1546,6 @@ void TextView::onContentsChange(const TextBlock & block, const Position & pos, i
   d->linecount += view::Block{ pos.line, d.get() }.span() - span;
 
   d->firstLine.notifyCharsAddedOrRemoved(pos, charsAdded, charsRemoved, span);
-
-  for (auto & fold : d->activeFolds)
-  {
-    /// TODO: check if fold is destroyed
-    TextDocument::updatePositionOnContentsChange(fold.begin, block, pos, charsRemoved, charsAdded);
-    TextDocument::updatePositionOnContentsChange(fold.end, block, pos, charsRemoved, charsAdded);
-  }
 
   if (d->firstDirtyBlock.line == -1 || d->firstDirtyBlock.line > pos.line)
     d->firstDirtyBlock = Position{ pos.line, 0 };

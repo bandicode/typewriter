@@ -27,6 +27,7 @@ struct Metrics;
 } // namespace view
 
 class SyntaxHighlighter;
+class TextFoldList;
 class TextFormat;
 class TextViewImpl;
 
@@ -74,6 +75,8 @@ public:
 
   void fold(int line);
   void unfold(int line);
+  const TextFoldList& folds() const;
+  bool hasActiveFolds() const;
 
   const TextFormat & defaultFormat() const;
   void setDefaultFormat(const TextFormat & format);

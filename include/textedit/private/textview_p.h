@@ -7,6 +7,7 @@
 
 #include "textedit/textedit.h"
 
+#include "textedit/textfold.h"
 #include "textedit/gutter.h"
 #include "textedit/view/block.h"
 #include "textedit/view/incrusted-widget.h"
@@ -21,21 +22,6 @@
 
 namespace textedit
 {
-
-namespace view
-{
-
-struct ActiveFold 
-{
-  Position begin;
-  Position end;
-
-  ActiveFold();
-  ActiveFold(const ActiveFold &) = default;
-  ActiveFold(const Position & b, const Position & e);
-};
-
-} // namespace view
 
 class TextDocument;
 
@@ -55,7 +41,7 @@ public:
   TextFormat defaultFormat;
   QString tabreplace;
 
-  QList<view::ActiveFold> activeFolds;
+  TextFoldList folds;
 
   QRect viewport;
   QScrollBar *hscrollbar;
