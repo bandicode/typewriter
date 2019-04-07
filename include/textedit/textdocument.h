@@ -34,6 +34,9 @@ public:
   TextBlock lastBlock() const;
   TextBlock findBlockByNumber(int num) const;
 
+  bool isReadOnly() const;
+  void setReadOnly(bool on = true);
+
   /// TODO: validate this candidate interface 
   void apply(const TextDiff & diff);
   int availableUndoSteps() const;

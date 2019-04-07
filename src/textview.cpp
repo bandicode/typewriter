@@ -850,8 +850,9 @@ ActiveFold::ActiveFold(const Position & b, const Position & e)
 } // namespace view
 
 
-TextViewImpl::TextViewImpl(const TextDocument *doc)
-  : hpolicy(Qt::ScrollBarAsNeeded)
+TextViewImpl::TextViewImpl(TextDocument *doc)
+  : document(doc)
+  , hpolicy(Qt::ScrollBarAsNeeded)
   , vpolicy(Qt::ScrollBarAlwaysOn)
   , firstDirtyBlock{-1, 0}
   , gutter(nullptr)
@@ -1053,18 +1054,34 @@ int TextViewImpl::invokeSyntaxHighlighter(view::Block l)
   return l.userState();
 }
 
-TextView::TextView(const TextDocument *document)
+TextView::TextView(TextDocument *document)
   : d(new TextViewImpl(document))
 {
-  connect(document, &TextDocument::blockDestroyed, this, &TextView::onBlockDestroyed);
-  connect(document, &TextDocument::blockInserted, this, &TextView::onBlockInserted);
-  connect(document, &TextDocument::contentsChange, this, &TextView::onContentsChange);
+  init();
+}
+
+TextView::TextView(std::unique_ptr<TextViewImpl> && impl)
+  : d(std::move(impl))
+{
+  init();
+}
+
+TextView::~TextView()
+{
+
+}
+
+void TextView::init()
+{
+  connect(document(), &TextDocument::blockDestroyed, this, &TextView::onBlockDestroyed);
+  connect(document(), &TextDocument::blockInserted, this, &TextView::onBlockInserted);
+  connect(document(), &TextDocument::contentsChange, this, &TextView::onContentsChange);
 
   d->hscrollbar = new QScrollBar(Qt::Horizontal, this);
   connect(d->hscrollbar, SIGNAL(valueChanged(int)), this, SLOT(update()));
 
   d->vscrollbar = new QScrollBar(Qt::Vertical, this);
-  d->vscrollbar->setRange(0, document->lineCount() - 1);
+  d->vscrollbar->setRange(0, document()->lineCount() - 1);
   d->vscrollbar->setValue(0);
   connect(d->vscrollbar, &QScrollBar::valueChanged, this, &TextView::setFirstVisibleLine);
 
@@ -1085,14 +1102,9 @@ TextView::TextView(const TextDocument *document)
   }
 }
 
-TextView::~TextView()
+TextDocument* TextView::document() const
 {
-
-}
-
-const TextDocument * TextView::document() const
-{
-  return d->blocks.front()->block.document();
+  return d->document;
 }
 
 view::Blocks TextView::blocks() const
@@ -1614,8 +1626,8 @@ void TextView::paint(QPainter *painter)
   {
     it.seek(firstline + i);
 
-    //if (it.needsRehighlight())
-    //  it.rehighlight();
+    if (it.block().needsRehighlight())
+      it.block().rehighlight();
 
     const int baseline = i * d->metrics.lineheight + d->metrics.ascent;
     drawLine(painter, QPoint{ d->viewport.left() - d->hscrollbar->value(), baseline }, it);

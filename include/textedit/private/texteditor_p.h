@@ -5,12 +5,14 @@
 #ifndef TEXTEDIT_TEXTEDITOR_P_H
 #define TEXTEDIT_TEXTEDITOR_P_H
 
+#include "textedit/private/textview_p.h"
+
 #include "textedit/textcursor.h"
 
 namespace textedit
 {
 
-class TextEditorImpl
+class TextEditorImpl : public TextViewImpl
 {
 public:
   TextEditorImpl(TextDocument *doc);

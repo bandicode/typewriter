@@ -42,6 +42,7 @@ class TextDocument;
 class TextViewImpl
 {
 public:
+  TextDocument *document;
   
   view::BlockInfoList blocks;
   view::Line firstLine;
@@ -70,7 +71,7 @@ public:
   QList<view::IncrustedWidget> widgets;
 
 public:
-  TextViewImpl(const TextDocument *doc);
+  TextViewImpl(TextDocument *doc);
 
   void calculateMetrics(const QFont & f);
 

@@ -18,25 +18,22 @@ namespace textedit
 {
 
 TextEditorImpl::TextEditorImpl(TextDocument *doc)
-  : cursor(doc)
-  , timer(-1)
-  , cursorblink(true)
+  : TextViewImpl(doc),
+  cursor(doc),
+  timer(-1),
+  cursorblink(true)
 {
 
 }
 
 TextEditor::TextEditor()
-  : TextView(new TextDocument)
+  : TextView(std::unique_ptr<TextViewImpl>(new TextEditorImpl(new TextDocument)))
 {
-  d.reset(new TextEditorImpl{ const_cast<TextDocument*>(TextView::document()) });
-
-  if (document()->parent() == nullptr)
-    document()->setParent(this);
+  document()->setParent(this);
 }
 
 TextEditor::TextEditor(TextDocument *doc)
-  : TextView(doc)
-  , d(new TextEditorImpl{doc})
+  : TextView(std::unique_ptr<TextViewImpl>(new TextEditorImpl(doc)))
 {
 
 }
@@ -46,29 +43,24 @@ TextEditor::~TextEditor()
 
 }
 
-TextDocument* TextEditor::document() const
-{
-  return d->cursor.document();
-}
-
 const TextCursor & TextEditor::cursor() const
 {
-  return d->cursor;
+  return d_func()->cursor;
 }
 
 void TextEditor::mousePressEvent(QMouseEvent *e)
 {
-  d->cursor.setPosition(hitTest(e->pos()));
-  d->cursorblink = true;
+  d_func()->cursor.setPosition(hitTest(e->pos()));
+  d_func()->cursorblink = true;
   /// TODO: scroll if cursor not fully visible
   update();
 }
 
 void TextEditor::mouseMoveEvent(QMouseEvent *e)
 {
-  auto pos = d->cursor.position();
-  d->cursor.setPosition(hitTest(e->pos()), TextCursor::KeepAnchor);
-  if (d->cursor.position() != pos)
+  auto pos = d_func()->cursor.position();
+  d_func()->cursor.setPosition(hitTest(e->pos()), TextCursor::KeepAnchor);
+  if (d_func()->cursor.position() != pos)
     update();
 }
 
@@ -89,7 +81,7 @@ void TextEditor::paintEvent(QPaintEvent *e)
   TextView::setupPainter(&painter);
   TextView::paint(&painter);
 
-  drawCursor(&painter, d->cursor);
+  drawCursor(&painter, d_func()->cursor);
 }
 
 void TextEditor::keyPressEvent(QKeyEvent *e)
@@ -100,37 +92,37 @@ void TextEditor::keyPressEvent(QKeyEvent *e)
   switch (e->key())
   {
   case Qt::Key_Down:
-    d->cursor.movePosition(TextCursor::Down, shift_modifier ? TextCursor::KeepAnchor : TextCursor::MoveAnchor);
+    d_func()->cursor.movePosition(TextCursor::Down, shift_modifier ? TextCursor::KeepAnchor : TextCursor::MoveAnchor);
     break;
   case Qt::Key_Left:
-    d->cursor.movePosition(TextCursor::Left, shift_modifier ? TextCursor::KeepAnchor : TextCursor::MoveAnchor);
+    d_func()->cursor.movePosition(TextCursor::Left, shift_modifier ? TextCursor::KeepAnchor : TextCursor::MoveAnchor);
     break;
   case Qt::Key_Right:
-    d->cursor.movePosition(TextCursor::Right, shift_modifier ? TextCursor::KeepAnchor : TextCursor::MoveAnchor);
+    d_func()->cursor.movePosition(TextCursor::Right, shift_modifier ? TextCursor::KeepAnchor : TextCursor::MoveAnchor);
     break;
   case Qt::Key_Up:
-    d->cursor.movePosition(TextCursor::Up, shift_modifier ? TextCursor::KeepAnchor : TextCursor::MoveAnchor);
+    d_func()->cursor.movePosition(TextCursor::Up, shift_modifier ? TextCursor::KeepAnchor : TextCursor::MoveAnchor);
     break;
   case Qt::Key_Enter:
   case Qt::Key_Return:
-    d->cursor.insertBlock();
+    d_func()->cursor.insertBlock();
     break;
   case Qt::Key_Delete:
-    d->cursor.deleteChar();
+    d_func()->cursor.deleteChar();
     break;
   case Qt::Key_Backspace:
-    d->cursor.deletePreviousChar();
+    d_func()->cursor.deletePreviousChar();
     break;
   default:
   {
     QString text = e->text();
     if (!text.isEmpty())
-      d->cursor.insertText(text);
+      d_func()->cursor.insertText(text);
   }
   break;
   }
 
-  d->cursorblink = true;
+  d_func()->cursorblink = true;
   update();
 }
 
@@ -141,9 +133,9 @@ void TextEditor::keyReleaseEvent(QKeyEvent *e)
 
 void TextEditor::timerEvent(QTimerEvent *e)
 {
-  if (e->timerId() == d->timer)
+  if (e->timerId() == d_func()->timer)
   {
-    d->cursorblink = !d->cursorblink;
+    d_func()->cursorblink = !d_func()->cursorblink;
     update();
   }
 
@@ -152,9 +144,9 @@ void TextEditor::timerEvent(QTimerEvent *e)
 
 void TextEditor::showEvent(QShowEvent *e)
 {
-  if (d->timer == -1)
+  if (d_func()->timer == -1)
   {
-    d->timer = startTimer(750);
+    d_func()->timer = startTimer(750);
   }
 
   TextView::showEvent(e);
@@ -172,7 +164,7 @@ void TextEditor::drawCursor(QPainter *painter, const TextCursor & c)
   if (c.hasSelection())
     drawSelection(painter, selection_start_block(c), c.selectionStart(), c.selectionEnd());
 
-  if (!d->cursorblink)
+  if (!d_func()->cursorblink)
     return;
 
   painter->setPen(QPen(Qt::black));
@@ -225,6 +217,11 @@ void TextEditor::drawSelection(QPainter *painter, TextBlock block, const Positio
     colcount = end.column;
     painter->drawRect(QRect(pt, QSize(colcount * metrics().charwidth, metrics().lineheight)));
   }
+}
+
+TextEditorImpl* TextEditor::d_func() const
+{
+  return reinterpret_cast<TextEditorImpl*>(d.get());
 }
 
 } // namespace textedit

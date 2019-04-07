@@ -34,10 +34,10 @@ class TEXTEDIT_API TextView : public QWidget
 {
   Q_OBJECT
 public:
-  TextView(const TextDocument *document);
+  TextView(TextDocument *document);
   ~TextView();
 
-  const TextDocument * document() const;
+  TextDocument * document() const;
 
   view::Blocks blocks() const;
   view::Lines lines() const;
@@ -100,6 +100,9 @@ protected Q_SLOTS:
   void onContentsChange(const TextBlock & block, const Position & pos, int charsRemoved, int charsAdded);
 
 protected:
+  explicit TextView(std::unique_ptr<TextViewImpl> && impl);
+
+protected:
   void paintEvent(QPaintEvent *e) override;
   void resizeEvent(QResizeEvent *e) override;
   void wheelEvent(QWheelEvent *e) override;
@@ -124,7 +127,10 @@ protected:
 protected:
   void updateLayout();
 
-private:
+private: 
+  void init();
+
+protected:
   std::unique_ptr<TextViewImpl> d;
 };
 

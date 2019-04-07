@@ -28,8 +28,10 @@ public:
   TextBlockRef lastBlock;
 
   QList<TextCursorImpl*> cursors;
+  bool readOnly;
 
   int idgen;
+
 
 public:
   TextDocumentImpl(TextDocument *doc);

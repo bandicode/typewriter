@@ -19,6 +19,7 @@ TextDocumentImpl::TextDocumentImpl(TextDocument *doc)
   , lineCount(1)
   , firstBlock(new TextBlockImpl())
   , lastBlock(firstBlock)
+  , readOnly(false)
   , idgen(0)
 {
   firstBlock.get()->id = idgen++;
@@ -363,8 +364,20 @@ TextBlock TextDocument::findBlockByNumber(int num) const
   return TextBlock{ this, it };
 }
 
+bool TextDocument::isReadOnly() const
+{
+  return d->readOnly;
+}
+
+void TextDocument::setReadOnly(bool on)
+{
+  d->readOnly = on;
+}
+
 void TextDocument::apply(const TextDiff & diff)
 {
+  Q_ASSERT(!isReadOnly());
+
   const QList<TextDiff::Diff> & diffs = diff.diffs();
 
   if (diffs.size() == 0)

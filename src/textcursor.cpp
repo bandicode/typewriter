@@ -319,14 +319,17 @@ QString TextCursor::selectedText() const
 
 void TextCursor::clearSelection()
 {
+  Q_ASSERT(!document()->isReadOnly());
+
   detach();
   mImpl->anchor = mImpl->pos;
 }
 
 void TextCursor::removeSelectedText()
 {
-  detach();
+  Q_ASSERT(!document()->isReadOnly());
 
+  detach();
   document()->impl()->removeSelection(position(), block(), anchor());
 }
 
@@ -359,6 +362,8 @@ void TextCursor::redo()
 
 void TextCursor::deleteChar()
 {
+  Q_ASSERT(!document()->isReadOnly());
+
   if (hasSelection())
   {
     removeSelectedText();
@@ -372,12 +377,13 @@ void TextCursor::deleteChar()
 
 void TextCursor::deletePreviousChar()
 {
+  Q_ASSERT(!document()->isReadOnly());
+
   if (hasSelection())
   {
     removeSelectedText();
     return;
   }
-
 
   detach();
 
@@ -386,6 +392,8 @@ void TextCursor::deletePreviousChar()
 
 void TextCursor::insertBlock()
 {
+  Q_ASSERT(!document()->isReadOnly());
+
   detach();
   
   if (hasSelection())
@@ -396,6 +404,8 @@ void TextCursor::insertBlock()
 
 void TextCursor::insertText(const QString & text)
 {
+  Q_ASSERT(!document()->isReadOnly());
+
   detach();
 
   if (hasSelection())
@@ -419,6 +429,8 @@ void TextCursor::insertText(const QString & text)
 
 void TextCursor::insertChar(const QChar & c)
 {
+  Q_ASSERT(!document()->isReadOnly());
+
   detach();
 
   if (hasSelection())

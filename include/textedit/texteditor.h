@@ -22,7 +22,6 @@ public:
   explicit TextEditor(TextDocument *doc);
   ~TextEditor();
 
-  TextDocument* document() const;
   const TextCursor & cursor() const;
 
 protected:
@@ -44,8 +43,8 @@ protected:
   void drawCursor(QPainter *painter, const TextCursor & c);
   void drawSelection(QPainter *painter, TextBlock block, const Position & begin, const Position & end);
 
-private:
-  std::unique_ptr<TextEditorImpl> d;
+protected:
+  TextEditorImpl* d_func() const;
 };
 
 } // namespace textedit
