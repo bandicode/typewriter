@@ -1,0 +1,3 @@
+[submodule "dependencies/unicode"]
+	path = dependencies/unicode
+	url = https://github.com/bandicode/unicode.git

@@ -13,6 +13,12 @@ set(CMAKE_AUTOMOC ON)
 find_package(Qt5 COMPONENTS Core Gui Widgets REQUIRED)
 
 ##################################################################
+###### dependencies
+##################################################################
+
+add_subdirectory(dependencies)
+
+##################################################################
 ###### textedit
 ##################################################################
 
@@ -25,6 +31,7 @@ file(GLOB_RECURSE HDR_TEXTEDIT_FILES
 add_library(textedit STATIC ${HDR_TEXTEDIT_FILES} ${SRC_TEXTEDIT_FILES})
 target_include_directories(textedit PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/include")
 target_compile_definitions(textedit PUBLIC -DTEXTEDIT_STATIC_LINKING)
+target_link_libraries(textedit unicode-header-only)
 target_link_libraries(textedit Qt5::Core Qt5::Gui Qt5::Widgets)
 
 foreach(_source IN ITEMS ${HDR_TEXTEDIT_FILES} ${SRC_TEXTEDIT_FILES})
