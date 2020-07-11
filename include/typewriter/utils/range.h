@@ -1,16 +1,16 @@
-// Copyright (C) 2018 Vincent Chambrin
-// This file is part of the textedit library
+// Copyright (C) 2020 Vincent Chambrin
+// This file is part of the typewriter library
 // For conditions of distribution and use, see copyright notice in LICENSE
 
-#ifndef TEXTEDIT_UTILS_RANGE_H
-#define TEXTEDIT_UTILS_RANGE_H
+#ifndef TYPEWRITER_UTILS_RANGE_H
+#define TYPEWRITER_UTILS_RANGE_H
 
-#include "textedit/textedit.h"
+#include "typewriter/typewriter-defs.h"
 
-namespace textedit
+namespace typewriter
 {
 
-class TEXTEDIT_API Range
+class TYPEWRITER_API Range
 {
 public:
   Range();
@@ -60,16 +60,16 @@ private:
   Position mEnd;
 };
 
-TEXTEDIT_API bool operator==(const Range & lhs, const Range & rhs);
-TEXTEDIT_API bool operator!=(const Range & lhs, const Range & rhs);
-TEXTEDIT_API bool operator<(const Range & lhs, const Range & rhs);
-TEXTEDIT_API bool operator<=(const Range & lhs, const Range & rhs);
-TEXTEDIT_API bool operator>(const Range & lhs, const Range & rhs);
-TEXTEDIT_API bool operator>=(const Range & lhs, const Range & rhs);
+TYPEWRITER_API bool operator==(const Range & lhs, const Range & rhs);
+TYPEWRITER_API bool operator!=(const Range & lhs, const Range & rhs);
+TYPEWRITER_API bool operator<(const Range & lhs, const Range & rhs);
+TYPEWRITER_API bool operator<=(const Range & lhs, const Range & rhs);
+TYPEWRITER_API bool operator>(const Range & lhs, const Range & rhs);
+TYPEWRITER_API bool operator>=(const Range & lhs, const Range & rhs);
 
-TEXTEDIT_API Range operator|(const Range & lhs, const Range & rhs);
-TEXTEDIT_API Range operator&(const Range & lhs, const Range & rhs);
+TYPEWRITER_API Range operator|(const Range & lhs, const Range & rhs);
+TYPEWRITER_API Range operator&(const Range & lhs, const Range & rhs);
 
-} // namespace textedit
+} // namespace typewriter
 
-#endif // !TEXTEDIT_UTILS_RANGE_H
+#endif // !TYPEWRITER_UTILS_RANGE_H

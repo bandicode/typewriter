@@ -1,25 +1,25 @@
-// Copyright (C) 2018 Vincent Chambrin
-// This file is part of the textedit library
+// Copyright (C) 2020 Vincent Chambrin
+// This file is part of the typewriter library
 // For conditions of distribution and use, see copyright notice in LICENSE
 
-#ifndef TEXTEDIT_TEXTDOCUMENT_P_H
-#define TEXTEDIT_TEXTDOCUMENT_P_H
+#ifndef TYPEWRITER_TEXTDOCUMENT_P_H
+#define TYPEWRITER_TEXTDOCUMENT_P_H
 
-#include "textedit/textedit.h"
+#include "typewriter/textdiff.h"
 
-#include "textedit/textdiff.h"
+#include "typewriter/private/textblock_p.h"
+#include "typewriter/private/textcursor_p.h"
 
-#include "textedit/private/textblock_p.h"
-#include "textedit/private/textcursor_p.h"
+#include <unicode/unicode.h>
 
-#include <QList>
+#include <vector>
 
-namespace textedit
+namespace typewriter
 {
 
 class TextDocument;
 
-class TEXTEDIT_API TextDocumentImpl
+class TYPEWRITER_API TextDocumentImpl
 {
 public:
   TextDocument *document;
@@ -27,8 +27,9 @@ public:
   TextBlockRef firstBlock;
   TextBlockRef lastBlock;
 
-  QList<TextCursorImpl*> cursors;
-  bool readOnly;
+  std::vector<TextCursorImpl*> cursors;
+
+  std::vector<std::unique_ptr<TextDocumentListener>> listeners;
 
   int idgen;
 
@@ -44,8 +45,8 @@ public:
   void destroyCursor(TextCursorImpl *cursor);
 
   void insertBlock(Position pos, const TextBlock & block);
-  void insertChar(Position pos, const TextBlock & block, const QChar & c);
-  void insertText(Position pos, const TextBlock & block, const QString & str);
+  void insertChar(Position pos, const TextBlock & block, unicode::Character c);
+  void insertText(Position pos, const TextBlock & block, const std::string& str);
   void deleteChar(Position pos, const TextBlock & block);
   void deletePreviousChar(Position pos, const TextBlock & block);
   void removeSelection(const Position begin, const TextBlock & beginBlock, const Position end);
@@ -57,6 +58,6 @@ protected:
   void remove_block(int blocknum, TextBlock block);
 };
 
-} // namespace textedit
+} // namespace typewriter
 
-#endif // !TEXTEDIT_TEXTDOCUMENT_P_H
+#endif // !TYPEWRITER_TEXTDOCUMENT_P_H

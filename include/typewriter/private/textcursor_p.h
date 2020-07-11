@@ -1,18 +1,16 @@
-// Copyright (C) 2018 Vincent Chambrin
-// This file is part of the textedit library
+// Copyright (C) 2020 Vincent Chambrin
+// This file is part of the typewriter library
 // For conditions of distribution and use, see copyright notice in LICENSE
 
-#ifndef TEXTEDIT_TEXTCURSOR_P_H
-#define TEXTEDIT_TEXTCURSOR_P_H
+#ifndef TYPEWRITER_TEXTCURSOR_P_H
+#define TYPEWRITER_TEXTCURSOR_P_H
 
-#include "textedit/textedit.h"
+#include "typewriter/textblock.h"
 
-#include "textedit/textblock.h"
-
-namespace textedit
+namespace typewriter
 {
 
-class TEXTEDIT_API TextCursorImpl
+class TYPEWRITER_API TextCursorImpl
 {
 public:
   int ref;
@@ -34,6 +32,6 @@ public:
   bool move_up(int n);
 };
 
-} // namespace textedit
+} // namespace typewriter
 
-#endif // !TEXTEDIT_TEXTCURSOR_P_H
+#endif // !TYPEWRITER_TEXTCURSOR_P_H

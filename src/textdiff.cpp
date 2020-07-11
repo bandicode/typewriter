@@ -1,45 +1,46 @@
-// Copyright (C) 2018 Vincent Chambrin
-// This file is part of the textedit library
+// Copyright (C) 2020 Vincent Chambrin
+// This file is part of the typewriter library
 // For conditions of distribution and use, see copyright notice in LICENSE
 
-#include "textedit/textdiff.h"
+#include "typewriter/textdiff.h"
 
+#include <algorithm>
 #include <cassert>
 
-namespace textedit
+namespace typewriter
 {
 
-TextRange::TextRange(const QString & text, const Position & start) :
-  mRange(start, TextRange::end(start, text)),
-  mText(text)
+TextRange::TextRange(const std::string& text, const Position& start) :
+  m_range(start, TextRange::end(start, text)),
+  m_text(text)
 {
 
 }
 
 const Position & TextRange::begin() const
 {
-  return mRange.begin();
+  return m_range.begin();
 }
 
 const Position & TextRange::end() const
 {
-  return mRange.end();
+  return m_range.end();
 }
 
 void TextRange::move(const Position & start)
 {
-  mRange.move(start);
+  m_range.move(start);
 }
 
-Position TextRange::end(const Position & start, const QString & text)
+Position TextRange::end(const Position & start, const std::string& text)
 {
-  const int line_count = text.count('\n');
+  const int line_count = std::count(text.begin(), text.end(), '\n');
 
   if (line_count == 0)
-    return Position{ start.line, start.column + text.size() };
+    return Position{ start.line, start.column + static_cast<int>(text.size()) };
 
-  const int last_lf = text.lastIndexOf('\n');
-  return Position{ start.line + line_count, text.length() - 1 - last_lf };
+  const int last_lf = text.find_last_of('\n');
+  return Position{ start.line + line_count, static_cast<int>(text.length()) - 1 - last_lf };
 }
 
 TextRange& TextRange::operator+=(const TextRange & other)
@@ -49,10 +50,10 @@ TextRange& TextRange::operator+=(const TextRange & other)
 
   const int insert_pos = seek(other.begin());
 
-  mText.insert(insert_pos, other.text());
+  m_text.insert(insert_pos, other.text());
 
   /// TODO: compute this more efficiently
-  mRange = Range(begin(), TextRange::end(begin(), mText));
+  m_range = Range(begin(), TextRange::end(begin(), m_text));
 
   return *this;
 }
@@ -71,10 +72,10 @@ TextRange& TextRange::operator-=(const Range & other)
   hint.index = erase_begin;
   const int erase_end = seek(p1, hint);
 
-  mText.remove(erase_begin, erase_end - erase_begin);
+  m_text.erase(erase_begin, erase_end - erase_begin);
 
   /// TODO: compute this more efficiently
-  mRange = Range(begin(), TextRange::end(begin(), mText));
+  m_range = Range(begin(), TextRange::end(begin(), m_text));
 
   return *this;
 }
@@ -90,7 +91,7 @@ int TextRange::seek(const Position & pos, SeekHint hint)
 {
   while (hint.pos != pos)
   {
-    const QChar c = mText.at(hint.index);
+    char c = m_text.at(hint.index);
     if (c == '\n')
     {
       hint.pos.line += 1;
@@ -114,7 +115,7 @@ Position TextRange::map(int offset) const
 
   while (i < offset)
   {
-    const QChar c = mText.at(i++);
+    const char c = m_text.at(i++);
 
     if (c == '\n')
     {
@@ -132,7 +133,7 @@ Position TextRange::map(int offset) const
 
 void TextDiff::Diff::clear()
 {
-  content = TextRange(QString(), content.begin());
+  content = TextRange(std::string(), content.begin());
 }
 
 Position TextDiff::Diff::endEditPos() const
@@ -179,7 +180,8 @@ void TextDiff::Diff::mapTo(const Diff & other)
 
 TextDiff::Diff TextDiff::takeFirst()
 {
-  Diff ret = mDiffs.takeFirst();
+  Diff ret = std::move(mDiffs.front());
+  mDiffs.erase(mDiffs.begin());
   ret.kind = ret.isInsertion() ? Removal : Insertion;
   for (auto & d : mDiffs)
   {
@@ -212,22 +214,22 @@ void TextDiff::simplify()
       continue;
 
     const Position new_begin = rm.content.map(nb_common);
-    ins.content = TextRange(ins.text().mid(nb_common), ins.begin());
-    rm.content = TextRange(rm.text().mid(nb_common), new_begin);
+    ins.content = TextRange(ins.text().substr(nb_common), ins.begin());
+    rm.content = TextRange(rm.text().substr(nb_common), new_begin);
 
     if (ins.isEmpty())
-      mDiffs.removeAt(i + 1);
+      mDiffs.erase(mDiffs.begin() + i + 1);
 
     if (rm.isEmpty())
-      mDiffs.removeAt(i);
+      mDiffs.erase(mDiffs.begin() + i);
   }
 }
 
 TextDiff& TextDiff::operator<<(Diff d)
 {
-  if (mDiffs.isEmpty())
+  if (mDiffs.empty())
   {
-    mDiffs.append(d);
+    mDiffs.push_back(std::move(d));
     return *(this);
   }
 
@@ -240,7 +242,7 @@ TextDiff& TextDiff::operator<<(Diff d)
 TextDiff& TextDiff::operator<<(const TextDiff & other)
 {
   TextDiff temp = other;
-  while (!temp.diffs().isEmpty())
+  while (!temp.diffs().empty())
   {
     auto diff = temp.takeFirst();
     (*this) << diff;
@@ -259,7 +261,7 @@ TextDiff& TextDiff::add_insertion(Diff d)
     Diff & current_diff = mDiffs[index];
     if (d.begin() < current_diff.begin())
     {
-      mDiffs.insert(index, d);
+      mDiffs.insert(mDiffs.begin() + index, d);
       return *(this);
     }
     else if (d.begin() == current_diff.begin()) 
@@ -317,7 +319,7 @@ TextDiff& TextDiff::add_insertion(Diff d)
     ++index;
   }
 
-  mDiffs.append(d);
+  mDiffs.push_back(d);
   return *this;
 }
 
@@ -338,7 +340,7 @@ TextDiff& TextDiff::add_removal(Diff rm)
   {
     if (mDiffs.at(i).isEmpty())
     {
-      mDiffs.removeAt(i);
+      mDiffs.erase(mDiffs.begin() + i);
       --i;
     }
     else
@@ -347,7 +349,7 @@ TextDiff& TextDiff::add_removal(Diff rm)
       {
         if (!rm.isEmpty() && !inserted)
         {
-          mDiffs.insert(i, rm);
+          mDiffs.insert(mDiffs.begin() + i, rm);
           ++i;
         }
 
@@ -358,7 +360,7 @@ TextDiff& TextDiff::add_removal(Diff rm)
 
   if (!inserted && !rm.isEmpty())
   {
-    mDiffs.append(rm);
+    mDiffs.push_back(rm);
   }
 
   return *this;
@@ -459,21 +461,21 @@ bool TextDiff::apply_removal(Diff& d, Diff& removal)
 namespace diff
 {
 
-TextDiff::Diff insert(const Position & pos, const QString & text)
+TextDiff::Diff insert(const Position& pos, const std::string& text)
 {
   return TextDiff::Diff{ TextDiff::Insertion, TextRange{ text, pos } };
 }
 
-TextDiff::Diff remove(const Position & pos, const QString & text)
+TextDiff::Diff remove(const Position& pos, const std::string& text)
 {
   return TextDiff::Diff{ TextDiff::Removal, TextRange{ text, pos } };
 }
 
 } // namespace diff
 
-bool operator==(const TextDiff::Diff & lhs, const TextDiff::Diff & rhs)
+bool operator==(const TextDiff::Diff& lhs, const TextDiff::Diff& rhs)
 {
   return lhs.isInsertion() == rhs.isInsertion() && lhs.content == rhs.content;
 }
 
-} // namespace textedit
+} // namespace typewriter

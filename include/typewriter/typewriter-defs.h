@@ -2,20 +2,20 @@
 // This file is part of the textedit library
 // For conditions of distribution and use, see copyright notice in LICENSE
 
-#ifndef TEXTEDIT_DEFS_H
-#define TEXTEDIT_DEFS_H
+#ifndef TYPEWRITER_DEFS_H
+#define TYPEWRITER_DEFS_H
 
-#if (defined(WIN32) || defined(_WIN32)) && !defined(TEXTEDIT_STATIC_LINKING)
-#if defined(TEXTEDIT_BUILD_LIB)
-#  define TEXTEDIT_API __declspec(dllexport)
+#if (defined(WIN32) || defined(_WIN32)) && !defined(TYPEWRITER_STATIC_LINKING)
+#if defined(TYPEWRITER_BUILD_LIB)
+#  define TYPEWRITER_API __declspec(dllexport)
 #else
-#  define TEXTEDIT_API __declspec(dllimport)
+#  define TYPEWRITER_API __declspec(dllimport)
 #endif
 #else
-#define TEXTEDIT_API
+#define TYPEWRITER_API
 #endif
 
-namespace textedit
+namespace typewriter
 {
 
 struct Position
@@ -31,12 +31,12 @@ inline bool operator<=(const Position & lhs, const Position & rhs) { return lhs.
 inline bool operator>(const Position & lhs, const Position & rhs) { return !(lhs <= rhs); }
 inline bool operator>=(const Position & lhs, const Position & rhs) { return !(lhs < rhs); }
 
-struct TEXTEDIT_API LineRange
+struct LineRange
 {
   int start;
   int end;
 };
 
-} // namespace textedit
+} // namespace typewriter
 
-#endif // !TEXTEDIT_DEFS_H
+#endif // !TYPEWRITER_DEFS_H

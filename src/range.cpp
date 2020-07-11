@@ -1,13 +1,13 @@
-// Copyright (C) 2018 Vincent Chambrin
-// This file is part of the textedit library
+// Copyright (C) 2020 Vincent Chambrin
+// This file is part of the typewriter library
 // For conditions of distribution and use, see copyright notice in LICENSE
 
-#include "textedit/utils/range.h"
+#include "typewriter/utils/range.h"
 
 #include <algorithm>
 #include <cassert>
 
-namespace textedit
+namespace typewriter
 {
 
 Range::Range() : 
@@ -150,4 +150,4 @@ Range operator&(const Range & lhs, const Range & rhs)
   return Range{ start, end };
 }
 
-} // namespace textedit
+} // namespace typewriter

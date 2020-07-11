@@ -1,21 +1,21 @@
-// Copyright (C) 2018 Vincent Chambrin
-// This file is part of the textedit library
+// Copyright (C) 2020 Vincent Chambrin
+// This file is part of the typewriter library
 // For conditions of distribution and use, see copyright notice in LICENSE
 
-#ifndef TEXTEDIT_TEXTBLOCK_H
-#define TEXTEDIT_TEXTBLOCK_H
+#ifndef TYPEWRITER_TEXTBLOCK_H
+#define TYPEWRITER_TEXTBLOCK_H
 
-#include "textedit/textedit.h"
+#include "typewriter/typewriter-defs.h"
 
-#include <QString>
+#include <string>
 
-namespace textedit
+namespace typewriter
 {
 
 class TextBlockImpl;
 class TextDocument;
 
-class TEXTEDIT_API TextBlock
+class TYPEWRITER_API TextBlock
 {
 public:
   TextBlock();
@@ -29,7 +29,7 @@ public:
   inline bool isNull() const { return mImpl == nullptr; }
   bool isValid() const;
 
-  const QString & text() const;
+  const std::string& text() const;
   int length() const;
 
   int blockNumber() const;
@@ -55,9 +55,9 @@ private:
   TextBlockImpl *mImpl;
 };
 
-TEXTEDIT_API TextBlock next(TextBlock block, int n = 1);
-TEXTEDIT_API TextBlock prev(TextBlock block, int n = 1);
+TYPEWRITER_API TextBlock next(TextBlock block, int n = 1);
+TYPEWRITER_API TextBlock prev(TextBlock block, int n = 1);
 
-} // namespace textedit
+} // namespace typewriter
 
-#endif // !TEXTEDIT_TEXTBLOCK_H
+#endif // !TYPEWRITER_TEXTBLOCK_H

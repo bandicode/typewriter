@@ -1,17 +1,19 @@
-// Copyright (C) 2018 Vincent Chambrin
-// This file is part of the textedit library
+// Copyright (C) 2020 Vincent Chambrin
+// This file is part of the typewriter library
 // For conditions of distribution and use, see copyright notice in LICENSE
 
-#include "textedit/textdocument.h"
-#include "textedit/private/textdocument_p.h"
+#include "typewriter/textdocument.h"
+#include "typewriter/private/textdocument_p.h"
 
-#include "textedit/textblock.h"
-#include "textedit/textcursor.h"
-#include "textedit/textdiff.h"
+#include "typewriter/textblock.h"
+#include "typewriter/textcursor.h"
+#include "typewriter/textdiff.h"
 
-#include <QDebug>
+#include <unicode/utf8.h>
 
-namespace textedit
+#include <iostream>
+
+namespace typewriter
 {
 
 TextDocumentImpl::TextDocumentImpl(TextDocument *doc)
@@ -19,7 +21,6 @@ TextDocumentImpl::TextDocumentImpl(TextDocument *doc)
   , lineCount(1)
   , firstBlock(new TextBlockImpl())
   , lastBlock(firstBlock)
-  , readOnly(false)
   , idgen(0)
 {
   firstBlock.get()->id = idgen++;
@@ -27,9 +28,9 @@ TextDocumentImpl::TextDocumentImpl(TextDocument *doc)
 
 TextDocumentImpl::~TextDocumentImpl()
 {
-  if (!this->cursors.isEmpty())
+  if (!this->cursors.empty())
   {
-    qDebug() << "Warning: TextDocument destroyed but some cursors are still active";
+    std::cerr << "Warning: TextDocument destroyed but some cursors are still active" << std::endl;
   }
 }
 
@@ -67,19 +68,23 @@ TextCursorImpl* TextDocumentImpl::createCursor(const Position & pos, const TextB
 {
   TextCursorImpl *ret = new TextCursorImpl(pos, b);
   ret->ref = 1;
-  this->cursors.append(ret);
+  this->cursors.push_back(ret);
   return ret;
 }
 
 void TextDocumentImpl::destroyCursor(TextCursorImpl *cursor)
 {
-  this->cursors.removeOne(cursor);
+  auto it = std::find(this->cursors.begin(), this->cursors.end(), cursor);
+
+  if (it != this->cursors.end())
+    this->cursors.erase(it);
+
   delete cursor;
 }
 
 void TextDocumentImpl::insertBlock(Position pos, const TextBlock & block)
 {
-  TextBlockImpl *newblock = new TextBlockImpl{ block.text().mid(pos.column) };
+  TextBlockImpl *newblock = new TextBlockImpl{ block.text().substr(pos.column) };
   newblock->id = idgen++;
 
   newblock->previous = block.impl();
@@ -99,11 +104,11 @@ void TextDocumentImpl::insertBlock(Position pos, const TextBlock & block)
 
   this->lineCount += 1;
 
-  block.impl()->content.chop(block.length() - pos.column);
+  block.impl()->content.erase(block.impl()->content.begin() + block.length() - pos.column, block.impl()->content.end());
   block.impl()->revision += 1;
 
   // Update cursors
-  for (int i(0); i < this->cursors.count(); ++i)
+  for (size_t i(0); i < this->cursors.size(); ++i)
   {
     TextCursorImpl *c = this->cursors[i];
 
@@ -129,41 +134,53 @@ void TextDocumentImpl::insertBlock(Position pos, const TextBlock & block)
     }
   }
 
-  Q_EMIT document->blockInserted(pos, TextBlock{ document, newblock });
-  Q_EMIT document->blockCountChanged(this->lineCount);
-  Q_EMIT document->contentsChanged();
+  for (const auto& l : listeners)
+  {
+    l->blockInserted(pos, TextBlock{ document, newblock });
+    l->blockCountChanged(this->lineCount);
+    l->contentsChanged();
+  }
 }
 
-void TextDocumentImpl::insertChar(Position pos, const TextBlock & block, const QChar & c)
+void TextDocumentImpl::insertChar(Position pos, const TextBlock & block, unicode::Character c)
 {
-  block.impl()->content.insert(pos.column, c);
+  // TODO: not correct, we need to take into account the 1 character != 1 char
+  unicode::Utf8Char u8c{ c };
+  block.impl()->content.insert(pos.column, u8c.data());
   block.impl()->revision += 1;
 
-  for (int i(0); i < this->cursors.count(); ++i)
+  for (size_t i(0); i < this->cursors.size(); ++i)
   {
     auto *c = this->cursors[i];
     TextDocument::updatePositionOnContentsChange(c->pos, block, pos, 0, 1);
     TextDocument::updatePositionOnContentsChange(c->anchor, block, pos, 0, 1);
   }
 
-  Q_EMIT document->contentsChange(block, pos, 0, 1);
-  Q_EMIT document->contentsChanged();
+  for (const auto& l : listeners)
+  {
+    l->contentsChange(block, pos, 0, 1);
+    l->contentsChanged();
+  }
 }
 
-void TextDocumentImpl::insertText(Position pos, const TextBlock & block, const QString & str)
+void TextDocumentImpl::insertText(Position pos, const TextBlock & block, const std::string& str)
 {
+  // TODO: not correct, we need to take into account the 1 character != 1 char
   block.impl()->content.insert(pos.column, str);
   block.impl()->revision += 1;
 
-  for (int i(0); i < this->cursors.count(); ++i)
+  for (size_t i(0); i < this->cursors.size(); ++i)
   {
     auto *c = this->cursors[i];
     TextDocument::updatePositionOnContentsChange(c->pos, block, pos, 0, str.length());
     TextDocument::updatePositionOnContentsChange(c->anchor, block, pos, 0, str.length());
   }
 
-  Q_EMIT document->contentsChange(block, pos, 0, str.length());
-  Q_EMIT document->contentsChanged();
+  for (const auto& l : listeners)
+  {
+    l->contentsChange(block, pos, 0, str.length());
+    l->contentsChanged();
+  }
 }
 
 void TextDocumentImpl::deleteChar(Position pos, const TextBlock & block)
@@ -180,7 +197,10 @@ void TextDocumentImpl::deleteChar(Position pos, const TextBlock & block)
     remove_selection_singleline(pos, block, 1);
   }
 
-  Q_EMIT document->contentsChanged();
+  for (const auto& l : listeners)
+  {
+    l->contentsChanged();
+  }
 }
 
 void TextDocumentImpl::deletePreviousChar(Position pos, const TextBlock & block)
@@ -197,7 +217,10 @@ void TextDocumentImpl::deletePreviousChar(Position pos, const TextBlock & block)
     remove_selection_singleline(Position{ pos.line, pos.column - 1 }, block, 1);
   }
 
-  Q_EMIT document->contentsChanged();
+  for (const auto& l : listeners)
+  {
+    l->contentsChanged();
+  }
 }
 
 void TextDocumentImpl::removeSelection(const Position begin, const TextBlock & beginBlock, const Position end)
@@ -222,27 +245,33 @@ void TextDocumentImpl::removeSelection(const Position begin, const TextBlock & b
     remove_selection_multiline(end, prev(beginBlock, begin.line - end.line), begin);
   }
 
-  Q_EMIT document->contentsChanged();
+  for (const auto& l : listeners)
+  {
+    l->contentsChanged();
+  }
 }
 
 void TextDocumentImpl::remove_selection_singleline(const Position begin, const TextBlock & beginBlock, int count)
 {
-  beginBlock.impl()->content.remove(begin.column, count);
+  beginBlock.impl()->content.erase(begin.column, count);
 
   // update cursors
-  for (int i(0); i < this->cursors.count(); ++i)
+  for (size_t i(0); i < this->cursors.size(); ++i)
   {
     TextCursorImpl *c = this->cursors[i];
     TextDocument::updatePositionOnContentsChange(c->pos, beginBlock, begin, count, 0);
     TextDocument::updatePositionOnContentsChange(c->anchor, beginBlock, begin, count, 0);
   }
 
-  Q_EMIT document->contentsChange(beginBlock, begin, count, 0);
+  for (const auto& l : listeners)
+  {
+    l->contentsChange(beginBlock, begin, count, 0);
+  }
 }
 
 void TextDocumentImpl::remove_selection_multiline(const Position begin, const TextBlock & beginBlock, const Position end)
 {
-  Q_ASSERT(begin.line < end.line);
+  assert(begin.line < end.line);
 
   const int count = end.line - begin.line;
 
@@ -284,7 +313,7 @@ void TextDocumentImpl::remove_block(int blocknum, TextBlock block)
   }
 
   // update cursors
-  for (int i(0); i < this->cursors.count(); ++i)
+  for (size_t i(0); i < this->cursors.size(); ++i)
   {
     TextCursorImpl *c = this->cursors[i];
     TextDocument::updatePositionOnBlockDestroyed(c->pos, blocknum, block);
@@ -295,21 +324,63 @@ void TextDocumentImpl::remove_block(int blocknum, TextBlock block)
 
   block.impl()->setGarbage();
   this->lineCount -= 1;
-  Q_EMIT document->blockDestroyed(blocknum, block);
+
+  for (const auto& l : listeners)
+  {
+    l->blockDestroyed(blocknum, block);
+  }
 }
 
 
-
-TextDocument::TextDocument(QObject *parent)
-  : QObject(parent)
-  , d(new TextDocumentImpl(this))
+TextDocumentListener::TextDocumentListener()
 {
 
 }
 
-TextDocument::TextDocument(const QString & text, QObject *parent)
-  : QObject(parent)
-  , d(new TextDocumentImpl(this))
+TextDocumentListener::~TextDocumentListener()
+{
+
+}
+
+TextDocument* TextDocumentListener::document() const
+{
+  return m_document;
+}
+
+void TextDocumentListener::blockInserted(const Position& pos, const TextBlock& newblock)
+{
+
+}
+
+void TextDocumentListener::blockCountChanged(int newBlockCount)
+{
+
+}
+
+void TextDocumentListener::blockDestroyed(int line, const TextBlock& block)
+{
+
+}
+
+void TextDocumentListener::contentsChange(const TextBlock& block, const Position& pos, int charsRemoved, int charsAdded)
+{
+
+}
+
+void TextDocumentListener::contentsChanged()
+{
+
+}
+
+
+TextDocument::TextDocument()
+  : d(new TextDocumentImpl(this))
+{
+
+}
+
+TextDocument::TextDocument(const std::string& text)
+  : d(new TextDocumentImpl(this))
 {
   TextCursor{ this }.insertText(text);
 }
@@ -319,24 +390,38 @@ TextDocument::~TextDocument()
 
 }
 
-const QString & TextDocument::text(int line) const
+const std::string& TextDocument::text(int line) const
 {
   return findBlockByNumber(line).text();
 }
 
-QString TextDocument::toString() const
+std::string TextDocument::toString() const
 {
-  QStringList lines;
-  lines.reserve(lineCount());
+  size_t total_length = 0;
 
   auto it = firstBlock();
   do
   {
-    lines.append(it.text());
+    total_length += it.text().length() + 1;
     it = it.next();
   } while (it.isValid());
 
-  return lines.join(QChar('\n'));
+  std::string result;
+  result.reserve(total_length);
+
+  it = firstBlock();
+  do
+  {
+    result.insert(result.end(), it.text().begin(), it.text().end());
+    result.push_back('\n');
+    it = it.next();
+  } while (it.isValid());
+
+
+  if(!result.empty())
+   result.pop_back();
+
+  return result;
 }
 
 TextBlock TextDocument::firstBlock() const
@@ -364,27 +449,15 @@ TextBlock TextDocument::findBlockByNumber(int num) const
   return TextBlock{ this, it };
 }
 
-bool TextDocument::isReadOnly() const
-{
-  return d->readOnly;
-}
-
-void TextDocument::setReadOnly(bool on)
-{
-  d->readOnly = on;
-}
-
 void TextDocument::apply(const TextDiff & diff)
 {
-  Q_ASSERT(!isReadOnly());
-
-  const QList<TextDiff::Diff> & diffs = diff.diffs();
+  const std::vector<TextDiff::Diff> & diffs = diff.diffs();
 
   if (diffs.size() == 0)
     return;
 
   TextCursor c{ this };
-  QList<TextCursor> cursors;
+  std::vector<TextCursor> cursors;
   cursors.reserve(diffs.size());
 
   /// TODO: add to undo stack
@@ -474,9 +547,30 @@ void TextDocument::updatePositionOnContentsChange(Position & pos, const TextBloc
     pos.column += charsAdded;
 }
 
+void TextDocument::addListener(TextDocumentListener* listener)
+{
+  assert(listener);
+  listener->m_document = this;
+  d->listeners.push_back(std::unique_ptr<TextDocumentListener>(listener));
+}
+
+void TextDocument::removeListener(TextDocumentListener* listener)
+{
+  auto it = std::find_if(d->listeners.begin(), d->listeners.end(), [listener](const std::unique_ptr<TextDocumentListener>& elem) -> bool {
+    return elem.get() == listener;
+    });
+
+  if (it == d->listeners.end())
+    return;
+
+  listener->m_document = nullptr;
+  it->release();
+  d->listeners.erase(it);
+}
+
 int TextDocument::lineCount() const
 {
   return d->lineCount;
 }
 
-} // namespace textedit
+} // namespace typewriter

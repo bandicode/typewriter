@@ -1,38 +1,38 @@
-// Copyright (C) 2018 Vincent Chambrin
-// This file is part of the textedit library
+// Copyright (C) 2020 Vincent Chambrin
+// This file is part of the typewriter library
 // For conditions of distribution and use, see copyright notice in LICENSE
 
-#ifndef TEXTEDIT_TEXTDIFF_H
-#define TEXTEDIT_TEXTDIFF_H
+#ifndef TYPEWRITER_TEXTDIFF_H
+#define TYPEWRITER_TEXTDIFF_H
 
-#include "textedit/utils/range.h"
+#include "typewriter/utils/range.h"
 
-#include <QList>
-#include <QString>
+#include <string>
+#include <vector>
 
-namespace textedit
+namespace typewriter
 {
 
-class TEXTEDIT_API TextRange
+class TYPEWRITER_API TextRange
 {
 public:
-  explicit TextRange(const QString & text, const Position & start = Position{ 0, 0 });
+  explicit TextRange(const std::string& text, const Position & start = Position{ 0, 0 });
   TextRange(const TextRange &) = default;
   ~TextRange() = default;
 
-  const Position & begin() const;
-  const Position & end() const;
+  const Position& begin() const;
+  const Position& end() const;
 
-  inline const QString & text() const { return mText; }
+  const std::string& text() const { return m_text; }
 
   void move(const Position & start);
 
   int seek(const Position & pos);
   Position map(int offset) const;
 
-  static Position end(const Position & start, const QString & text);
+  static Position end(const Position& start, const std::string& text);
 
-  inline operator Range() const { return mRange; }
+  inline operator Range() const { return m_range; }
 
   TextRange & operator=(const TextRange &) = default;
 
@@ -50,11 +50,11 @@ private:
   int seek(const Position & pos, SeekHint hint);
 
 private:
-  Range mRange;
-  QString mText;
+  Range m_range;
+  std::string m_text;
 };
 
-class TEXTEDIT_API TextDiff
+class TYPEWRITER_API TextDiff
 {
 public:
   TextDiff() = default;
@@ -76,15 +76,15 @@ public:
     inline Position begin() const { return content.begin(); }
     inline Position end() const { return content.end(); }
     inline bool isEmpty() const { return begin() == end(); }
-    inline const QString & text() const { return content.text(); }
+    inline const std::string& text() const { return content.text(); }
     void clear();
     Position endEditPos() const;
 
     void mapTo(const Diff & other);
   };
 
-  inline const QList<Diff> & diffs() const { return mDiffs; }
-  inline QList<Diff> & diffs() { return mDiffs; }
+  inline const std::vector<Diff> & diffs() const { return mDiffs; }
+  inline std::vector<Diff> & diffs() { return mDiffs; }
   
   Diff takeFirst();
 
@@ -103,20 +103,20 @@ private:
 
 private:
   int mAgent;
-  QList<Diff> mDiffs;
+  std::vector<Diff> mDiffs;
 };
 
 namespace diff
 {
 
-TextDiff::Diff insert(const Position & pos, const QString & text);
-TextDiff::Diff remove(const Position & pos, const QString & text);
+TextDiff::Diff insert(const Position& pos, const std::string& text);
+TextDiff::Diff remove(const Position& pos, const std::string& text);
 
 } // namespace diff
 
-bool operator==(const TextDiff::Diff & lhs, const TextDiff::Diff & rhs);
-inline bool operator!=(const TextDiff::Diff & lhs, const TextDiff::Diff & rhs) { return !(lhs == rhs); }
+bool operator==(const TextDiff::Diff& lhs, const TextDiff::Diff& rhs);
+inline bool operator!=(const TextDiff::Diff& lhs, const TextDiff::Diff& rhs) { return !(lhs == rhs); }
 
-} // namespace textedit
+} // namespace typewriter
 
-#endif // !TEXTEDIT_TEXTDIFF_H
+#endif // !TYPEWRITER_TEXTDIFF_H

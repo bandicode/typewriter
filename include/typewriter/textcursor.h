@@ -1,15 +1,17 @@
-// Copyright (C) 2018 Vincent Chambrin
-// This file is part of the textedit library
+// Copyright (C) 2020 Vincent Chambrin
+// This file is part of the typewriter library
 // For conditions of distribution and use, see copyright notice in LICENSE
 
-#ifndef TEXTEDIT_TEXTCURSOR_H
-#define TEXTEDIT_TEXTCURSOR_H
+#ifndef TYPEWRITER_TEXTCURSOR_H
+#define TYPEWRITER_TEXTCURSOR_H
 
-#include "textedit/textedit.h"
+#include "typewriter/typewriter-defs.h"
 
-#include <QString>
+#include <unicode/unicode.h>
 
-namespace textedit
+#include <string>
+
+namespace typewriter
 {
 
 class TextBlock;
@@ -17,7 +19,7 @@ class TextDocument;
 
 class TextCursorImpl;
 
-class TEXTEDIT_API TextCursor
+class TYPEWRITER_API TextCursor
 {
 public:
   TextCursor();
@@ -62,7 +64,7 @@ public:
   Position selectionStart() const;
   Position selectionEnd() const;
   bool hasSelection() const;
-  QString selectedText() const;
+  std::string selectedText() const;
   void clearSelection();
   void removeSelectedText();
 
@@ -75,8 +77,8 @@ public:
   void deleteChar();
   void deletePreviousChar();
   void insertBlock();
-  void insertText(const QString & text);
-  void insertChar(const QChar & c);
+  void insertText(const std::string & text);
+  void insertChar(const unicode::Character c);
 
   void swap(TextCursor & other);
   void detach();
@@ -90,6 +92,6 @@ private:
   TextDocument *mDocument;
 };
 
-} // namespace textedit
+} // namespace typewriter
 
-#endif // !TEXTEDIT_TEXTCURSOR_H
+#endif // !TYPEWRITER_TEXTCURSOR_H

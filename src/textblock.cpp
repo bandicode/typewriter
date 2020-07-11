@@ -1,14 +1,14 @@
-// Copyright (C) 2018 Vincent Chambrin
-// This file is part of the textedit library
+// Copyright (C) 2020 Vincent Chambrin
+// This file is part of the typewriter library
 // For conditions of distribution and use, see copyright notice in LICENSE
 
-#include "textedit/textblock.h"
-#include "textedit/private/textblock_p.h"
+#include "typewriter/textblock.h"
+#include "typewriter/private/textblock_p.h"
 
-#include "textedit/textdocument.h"
-#include "textedit/private/textdocument_p.h"
+#include "typewriter/textdocument.h"
+#include "typewriter/private/textdocument_p.h"
 
-namespace textedit
+namespace typewriter
 {
 
 TextBlockRef::TextBlockRef()
@@ -116,7 +116,7 @@ TextBlockImpl::TextBlockImpl()
 
 }
 
-TextBlockImpl::TextBlockImpl(const QString & text)
+TextBlockImpl::TextBlockImpl(const std::string& text)
   : ref(0)
   , revision(0)
   , content(text)
@@ -168,7 +168,7 @@ bool TextBlock::isValid() const
   return !isNull() && !mImpl->isGarbage();
 }
 
-const QString & TextBlock::text() const
+const std::string& TextBlock::text() const
 {
   return mImpl->content;
 }
@@ -289,4 +289,4 @@ TextBlock prev(TextBlock block, int n)
   return block;
 }
 
-} // namespace textedit
+} // namespace typewriter

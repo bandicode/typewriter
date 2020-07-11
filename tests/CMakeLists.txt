@@ -1,12 +1,17 @@
 
 enable_testing()
 
-find_package(Qt5 COMPONENTS Core Gui Widgets Test REQUIRED)
+if(NOT DEFINED TYPEWRITER_DOWNLOADED_CATCH2 OR NOT TYPEWRITER_DOWNLOADED_CATCH2)
 
-file(GLOB_RECURSE TEST_SRC_FILES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/*.h)
+  message("Downloading Catch2")
+  file(DOWNLOAD https://github.com/catchorg/Catch2/releases/download/v2.11.3/catch.hpp "${CMAKE_CURRENT_LIST_DIR}/catch.hpp" SHOW_PROGRESS)
+  
+  set(TYPEWRITER_DOWNLOADED_CATCH2 TRUE CACHE BOOL "Whether Catch2 was downloaded")
 
-add_executable(tests ${TEST_SRC_FILES})
-add_dependencies(tests textedit)
-target_include_directories(tests PUBLIC "../include")
-target_link_libraries(tests textedit)
-target_link_libraries(tests Qt5::Test)
+endif()
+
+file(GLOB_RECURSE TYPEWRITER_TEST_SRC_FILES ${CMAKE_CURRENT_SOURCE_DIR}/*.cpp ${CMAKE_CURRENT_SOURCE_DIR}/*.h)
+
+add_executable(TEST_typewriter "catch.hpp" ${TYPEWRITER_TEST_SRC_FILES})
+target_include_directories(TEST_typewriter PUBLIC "../include")
+target_link_libraries(TEST_typewriter textedit)

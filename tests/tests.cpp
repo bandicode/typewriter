@@ -1,216 +1,211 @@
-// Copyright (C) 2018 Vincent Chambrin
-// This file is part of the richui library
+// Copyright (C) 2020 Vincent Chambrin
+// This file is part of the typewriter library
 // For conditions of distribution and use, see copyright notice in LICENSE
 
-#include "tests.h"
+#include "catch.hpp"
 
-#include "textedit/textdiff.h"
+#include "typewriter/textdiff.h"
 
-using namespace textedit;
+using namespace typewriter;
 
 inline static Position pos(int n)
 {
   return Position{ 0, n };
 }
 
-void TextEditTests::initTestCase()
+TEST_CASE("Simple text diffs are working", "[textdiff]")
 {
-
-}
-
-void TextEditTests::TestTextDiff()
-{
-  QString text = "01234567890123456789";
+  std::string text = "01234567890123456789";
 
   TextDiff td;
-  td << diff::insert(pos(2), QString("a"));
-  td << diff::insert(pos(3), QString("b"));
+  td << diff::insert(pos(2), std::string("a"));
+  td << diff::insert(pos(3), std::string("b"));
 
-  QVERIFY(td.diffs().size() == 1);
-  QVERIFY(td.diffs().front() == diff::insert(pos(2), QString("ab")));
+  REQUIRE(td.diffs().size() == 1);
+  REQUIRE((td.diffs().front() == diff::insert(pos(2), std::string("ab"))));
 
-  td << diff::remove(pos(2), QString("ab23"));
-  QVERIFY(td.diffs().size() == 1);
-  QVERIFY(td.diffs().front() == diff::remove(pos(2), QString("23")));
-
-  /******/
-
-  td = TextDiff();
-  td << diff::insert(pos(2), QString("abef"));
-  td << diff::insert(pos(4), QString("cd"));
-
-  QVERIFY(td.diffs().size() == 1);
-  QVERIFY(td.diffs().front() == diff::insert(pos(2), QString("abcdef")));
+  td << diff::remove(pos(2), std::string("ab23"));
+  REQUIRE(td.diffs().size() == 1);
+  REQUIRE((td.diffs().front() == diff::remove(pos(2), std::string("23"))));
 
   /******/
 
   td = TextDiff();
-  td << diff::insert(pos(2), QString("ab"));
-  td << diff::insert(pos(4+2), QString("cd"));
-  td << diff::insert(pos(2), QString("ab"));
+  td << diff::insert(pos(2), std::string("abef"));
+  td << diff::insert(pos(4), std::string("cd"));
 
-  QVERIFY(td.diffs().size() == 2);
-  QVERIFY(td.diffs().front() == diff::insert(pos(2), QString("abab")));
-  QVERIFY(td.diffs().back() == diff::insert(pos(4), QString("cd")));
+  REQUIRE(td.diffs().size() == 1);
+  REQUIRE((td.diffs().front() == diff::insert(pos(2), std::string("abcdef"))));
 
   /******/
 
   td = TextDiff();
-  td << diff::insert(pos(2), QString("ab"));
-  td << diff::remove(pos(2), QString("ab"));
+  td << diff::insert(pos(2), std::string("ab"));
+  td << diff::insert(pos(4 + 2), std::string("cd"));
+  td << diff::insert(pos(2), std::string("ab"));
 
-  QVERIFY(td.diffs().isEmpty());
-
-  /******/
-
-  td = TextDiff();
-  td << diff::remove(pos(2), QString("23"));
-  td << diff::insert(pos(2), QString("ab"));
-
-  QVERIFY(td.diffs().size() == 2);
-  QVERIFY(td.diffs().front() == diff::remove(pos(2), QString("23")));
-  QVERIFY(td.diffs().back() == diff::insert(pos(4), QString("ab")));
+  REQUIRE(td.diffs().size() == 2);
+  REQUIRE((td.diffs().front() == diff::insert(pos(2), std::string("abab"))));
+  REQUIRE((td.diffs().back() == diff::insert(pos(4), std::string("cd"))));
 
   /******/
 
   td = TextDiff();
-  td << diff::insert(pos(2), QString("ab"));
-  td << diff::remove(pos(3), QString("b"));
+  td << diff::insert(pos(2), std::string("ab"));
+  td << diff::remove(pos(2), std::string("ab"));
 
-  QVERIFY(td.diffs().size() == 1);
-  QVERIFY(td.diffs().front() == diff::insert(pos(2), QString("a")));
-
-  /******/
-
-  td = TextDiff();
-  td << diff::remove(pos(2), QString("2"));
-  td << diff::remove(pos(2), QString("3"));
-
-  QVERIFY(td.diffs().size() == 1);
-  QVERIFY(td.diffs().front() == diff::remove(pos(2), QString("23")));
-
-  td << diff::remove(pos(1), QString("1"));
-
-  QVERIFY(td.diffs().size() == 1);
-  QVERIFY(td.diffs().front() == diff::remove(pos(1), QString("123")));
+  REQUIRE(td.diffs().empty());
 
   /******/
 
   td = TextDiff();
-  td << diff::insert(pos(1), QString("ab"));
-  td << diff::remove(pos(4 + 2), QString("45"));
-  td << diff::remove(pos(2 + 2), QString("2367"));
+  td << diff::remove(pos(2), std::string("23"));
+  td << diff::insert(pos(2), std::string("ab"));
 
-  QVERIFY(td.diffs().size() == 2);
-  QVERIFY(td.diffs().front() == diff::insert(pos(1), QString("ab")));
-  QVERIFY(td.diffs().back() == diff::remove(pos(2), QString("234567")));
-  
+  REQUIRE(td.diffs().size() == 2);
+  REQUIRE((td.diffs().front() == diff::remove(pos(2), std::string("23"))));
+  REQUIRE((td.diffs().back() == diff::insert(pos(4), std::string("ab"))));
+
   /******/
 
   td = TextDiff();
-  td << diff::insert(pos(2), QString("a"));
-  td << diff::insert(pos(5), QString("b"));
+  td << diff::insert(pos(2), std::string("ab"));
+  td << diff::remove(pos(3), std::string("b"));
 
-  QVERIFY(td.diffs().size() == 2);
-  QVERIFY(td.diffs().back().begin() == pos(4));
+  REQUIRE(td.diffs().size() == 1);
+  REQUIRE((td.diffs().front() == diff::insert(pos(2), std::string("a"))));
+
+  /******/
+
+  td = TextDiff();
+  td << diff::remove(pos(2), std::string("2"));
+  td << diff::remove(pos(2), std::string("3"));
+
+  REQUIRE(td.diffs().size() == 1);
+  REQUIRE((td.diffs().front() == diff::remove(pos(2), std::string("23"))));
+
+  td << diff::remove(pos(1), std::string("1"));
+
+  REQUIRE(td.diffs().size() == 1);
+  REQUIRE((td.diffs().front() == diff::remove(pos(1), std::string("123"))));
+
+  /******/
+
+  td = TextDiff();
+  td << diff::insert(pos(1), std::string("ab"));
+  td << diff::remove(pos(4 + 2), std::string("45"));
+  td << diff::remove(pos(2 + 2), std::string("2367"));
+
+  REQUIRE(td.diffs().size() == 2);
+  REQUIRE((td.diffs().front() == diff::insert(pos(1), std::string("ab"))));
+  REQUIRE((td.diffs().back() == diff::remove(pos(2), std::string("234567"))));
+
+  /******/
+
+  td = TextDiff();
+  td << diff::insert(pos(2), std::string("a"));
+  td << diff::insert(pos(5), std::string("b"));
+
+  REQUIRE(td.diffs().size() == 2);
+  REQUIRE(td.diffs().back().begin() == pos(4));
 
   td << diff::remove(pos(1), "1a23b4");
-  QVERIFY(td.diffs().size() == 1);
-  QVERIFY(td.diffs().front() == diff::remove(pos(1), QString("1234")));
+  REQUIRE(td.diffs().size() == 1);
+  REQUIRE((td.diffs().front() == diff::remove(pos(1), std::string("1234"))));
 
   /******/
 
   td = TextDiff();
-  td << diff::insert(pos(2), QString("abcd"));
-  td << diff::remove(pos(1), QString("1ab"));
+  td << diff::insert(pos(2), std::string("abcd"));
+  td << diff::remove(pos(1), std::string("1ab"));
 
-  QVERIFY(td.diffs().size() == 2);
-  QVERIFY(td.diffs().front() == diff::remove(pos(1), QString("1")));
-  QVERIFY(td.diffs().back() == diff::insert(pos(2), QString("cd")));
-
-  /******/
-
-  td = TextDiff();
-  td << diff::insert(pos(2), QString("abcd"));
-  td << diff::remove(pos(4), QString("cd23"));
-
-  QVERIFY(td.diffs().size() == 2);
-  QVERIFY(td.diffs().front() == diff::remove(pos(2), QString("23")));
-  QVERIFY(td.diffs().back() == diff::insert(pos(4), QString("ab")));
+  REQUIRE(td.diffs().size() == 2);
+  REQUIRE((td.diffs().front() == diff::remove(pos(1), std::string("1"))));
+  REQUIRE((td.diffs().back() == diff::insert(pos(2), std::string("cd"))));
 
   /******/
 
   td = TextDiff();
-  td << diff::remove(pos(2), QString("23456"));
-  td << diff::insert(pos(2), QString("234"));
+  td << diff::insert(pos(2), std::string("abcd"));
+  td << diff::remove(pos(4), std::string("cd23"));
 
-  QVERIFY(td.diffs().size() == 2);
-  QVERIFY(td.diffs().front() == diff::remove(pos(2), QString("23456")));
-  QVERIFY(td.diffs().back() == diff::insert(pos(7), QString("234")));
+  REQUIRE(td.diffs().size() == 2);
+  REQUIRE((td.diffs().front() == diff::remove(pos(2), std::string("23"))));
+  REQUIRE((td.diffs().back() == diff::insert(pos(4), std::string("ab"))));
+
+  /******/
+
+  td = TextDiff();
+  td << diff::remove(pos(2), std::string("23456"));
+  td << diff::insert(pos(2), std::string("234"));
+
+  REQUIRE(td.diffs().size() == 2);
+  REQUIRE((td.diffs().front() == diff::remove(pos(2), std::string("23456"))));
+  REQUIRE((td.diffs().back() == diff::insert(pos(7), std::string("234"))));
 
   td.simplify();
 
-  QVERIFY(td.diffs().size() == 1);
-  QVERIFY(td.diffs().front() == diff::remove(pos(5), QString("56")));
+  REQUIRE(td.diffs().size() == 1);
+  REQUIRE((td.diffs().front() == diff::remove(pos(5), std::string("56"))));
 
   /******/
 
   td = TextDiff();
-  td << diff::remove(pos(2), QString("234"));
-  td << diff::insert(pos(2), QString("23456"));
+  td << diff::remove(pos(2), std::string("234"));
+  td << diff::insert(pos(2), std::string("23456"));
 
-  QVERIFY(td.diffs().size() == 2);
-  QVERIFY(td.diffs().front() == diff::remove(pos(2), QString("234")));
-  QVERIFY(td.diffs().back() == diff::insert(pos(5), QString("23456")));
+  REQUIRE(td.diffs().size() == 2);
+  REQUIRE((td.diffs().front() == diff::remove(pos(2), std::string("234"))));
+  REQUIRE((td.diffs().back() == diff::insert(pos(5), std::string("23456"))));
 
   td.simplify();
 
-  QVERIFY(td.diffs().size() == 1);
-  QVERIFY(td.diffs().front() == diff::insert(pos(5), QString("56")));
+  REQUIRE(td.diffs().size() == 1);
+  REQUIRE((td.diffs().front() == diff::insert(pos(5), std::string("56"))));
 }
 
-void TextEditTests::TestTextDiffComplex()
+TEST_CASE("Complex text diffs are working", "[textdiff]")
 {
-  QString text = "01a2b3c459012345";
+  std::string text = "01a2b3c459012345";
 
   TextDiff td1;
-  td1 << diff::insert(pos(2), QString("a"));
-  td1 << diff::insert(pos(4), QString("b"));
-  td1 << diff::insert(pos(6), QString("c"));
-  td1 << diff::remove(pos(8), QString("678"));
-  td1 << diff::insert(pos(9), QString("d"));
+  td1 << diff::insert(pos(2), std::string("a"));
+  td1 << diff::insert(pos(4), std::string("b"));
+  td1 << diff::insert(pos(6), std::string("c"));
+  td1 << diff::remove(pos(8), std::string("678"));
+  td1 << diff::insert(pos(9), std::string("d"));
 
-  QVERIFY(td1.diffs().size() == 5);
-  QVERIFY(td1.diffs().front() == diff::insert(pos(2), QString("a")));
-  QVERIFY(td1.diffs().at(1) == diff::insert(pos(3), QString("b")));
-  QVERIFY(td1.diffs().at(2) == diff::insert(pos(4), QString("c")));
-  QVERIFY(td1.diffs().at(3) == diff::remove(pos(5), QString("678")));
-  QVERIFY(td1.diffs().at(4) == diff::insert(pos(9), QString("d")));
+  REQUIRE(td1.diffs().size() == 5);
+  REQUIRE((td1.diffs().front() == diff::insert(pos(2), std::string("a"))));
+  REQUIRE((td1.diffs().at(1) == diff::insert(pos(3), std::string("b"))));
+  REQUIRE((td1.diffs().at(2) == diff::insert(pos(4), std::string("c"))));
+  REQUIRE((td1.diffs().at(3) == diff::remove(pos(5), std::string("678"))));
+  REQUIRE((td1.diffs().at(4) == diff::insert(pos(9), std::string("d"))));
 
   TextDiff::Diff elem = td1.takeFirst();
-  QVERIFY(elem == diff::insert(pos(2), QString("a")));
-  QVERIFY(td1.diffs().size() == 4);
-  QVERIFY(td1.diffs().front() == diff::insert(pos(4), QString("b")));
-  QVERIFY(td1.diffs().at(1) == diff::insert(pos(5), QString("c")));
-  QVERIFY(td1.diffs().at(2) == diff::remove(pos(6), QString("678")));
-  QVERIFY(td1.diffs().at(3) == diff::insert(pos(10), QString("d")));
+  REQUIRE((elem == diff::insert(pos(2), std::string("a"))));
+  REQUIRE(td1.diffs().size() == 4);
+  REQUIRE((td1.diffs().front() == diff::insert(pos(4), std::string("b"))));
+  REQUIRE((td1.diffs().at(1) == diff::insert(pos(5), std::string("c"))));
+  REQUIRE((td1.diffs().at(2) == diff::remove(pos(6), std::string("678"))));
+  REQUIRE((td1.diffs().at(3) == diff::insert(pos(10), std::string("d"))));
 
   elem = td1.takeFirst();
-  QVERIFY(elem == diff::insert(pos(4), QString("b")));
-  QVERIFY(td1.diffs().size() == 3);
-  QVERIFY(td1.diffs().front() == diff::insert(pos(6), QString("c")));
-  QVERIFY(td1.diffs().at(1) == diff::remove(pos(7), QString("678")));
-  QVERIFY(td1.diffs().at(2) == diff::insert(pos(11), QString("d")));
+  REQUIRE((elem == diff::insert(pos(4), std::string("b"))));
+  REQUIRE(td1.diffs().size() == 3);
+  REQUIRE((td1.diffs().front() == diff::insert(pos(6), std::string("c"))));
+  REQUIRE((td1.diffs().at(1) == diff::remove(pos(7), std::string("678"))));
+  REQUIRE((td1.diffs().at(2) == diff::insert(pos(11), std::string("d"))));
 
   elem = td1.takeFirst();
-  QVERIFY(elem == diff::insert(pos(6), QString("c")));
-  QVERIFY(td1.diffs().size() == 2);
-  QVERIFY(td1.diffs().at(0) == diff::remove(pos(8), QString("678")));
-  QVERIFY(td1.diffs().at(1) == diff::insert(pos(12), QString("d")));
+  REQUIRE((elem == diff::insert(pos(6), std::string("c"))));
+  REQUIRE(td1.diffs().size() == 2);
+  REQUIRE((td1.diffs().at(0) == diff::remove(pos(8), std::string("678"))));
+  REQUIRE((td1.diffs().at(1) == diff::insert(pos(12), std::string("d"))));
 
 
   elem = td1.takeFirst();
-  QVERIFY(elem == diff::remove(pos(8), QString("678")));
-  QVERIFY(td1.diffs().size() == 1);
-  QVERIFY(td1.diffs().at(0) == diff::insert(pos(9), QString("d")));
+  REQUIRE((elem == diff::remove(pos(8), std::string("678"))));
+  REQUIRE(td1.diffs().size() == 1);
+  REQUIRE((td1.diffs().at(0) == diff::insert(pos(9), std::string("d"))));
 }

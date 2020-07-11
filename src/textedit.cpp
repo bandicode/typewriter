@@ -1,10 +1,10 @@
-// Copyright (C) 2018 Vincent Chambrin
-// This file is part of the textedit library
+// Copyright (C) 2020 Vincent Chambrin
+// This file is part of the typewriter library
 // For conditions of distribution and use, see copyright notice in LICENSE
 
-#include "textedit/textedit.h"
+#include "typewriter/typewriter-defs.h"
 
-namespace textedit
+namespace typewriter
 {
 
-} // namespace textedit
+} // namespace typewriter

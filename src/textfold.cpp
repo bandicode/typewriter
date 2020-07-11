@@ -1,15 +1,15 @@
-// Copyright (C) 2018 Vincent Chambrin
-// This file is part of the textedit library
+// Copyright (C) 2020 Vincent Chambrin
+// This file is part of the typewriter library
 // For conditions of distribution and use, see copyright notice in LICENSE
 
-#include "textedit/textfold.h"
+#include "typewriter/textfold.h"
 
 #include <cassert>
 
-namespace textedit
+namespace typewriter
 {
 
-TextFold::TextFold(const TextCursor & c, const QString & description)
+TextFold::TextFold(const TextCursor & c, const std::string & description)
   : mActive(false),
   mCursor(c),
   mDescription(description)
@@ -74,7 +74,7 @@ void TextFoldList::insert(const TextFold & fold)
   {
     if (fold.cursor().anchor() < mList.at(i).cursor().anchor())
     {
-      mList.insert(i, fold);
+      mList.insert(mList.begin() + i, fold);
       return;
     }
   }
@@ -125,7 +125,7 @@ const int TextFoldList::lastActiveIndex() const
 const TextFold& TextFoldList::activeBack() const
 {
   const int last_active = lastActiveIndex();
-  Q_ASSERT(last_active != -1);
+  assert(last_active != -1);
 
   return at(last_active);
 }

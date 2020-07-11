@@ -1,15 +1,18 @@
-// Copyright (C) 2018 Vincent Chambrin
-// This file is part of the textedit library
+// Copyright (C) 2020 Vincent Chambrin
+// This file is part of the typewriter library
 // For conditions of distribution and use, see copyright notice in LICENSE
 
-#include "textedit/textcursor.h"
-#include "textedit/private/textcursor_p.h"
+#include "typewriter/textcursor.h"
+#include "typewriter/private/textcursor_p.h"
 
-#include "textedit/textblock.h"
-#include "textedit/textdocument.h"
-#include "textedit/private/textdocument_p.h"
+#include "typewriter/textblock.h"
+#include "typewriter/textdocument.h"
+#include "typewriter/private/textdocument_p.h"
 
-namespace textedit
+#include <algorithm>
+#include <stdexcept>
+
+namespace typewriter
 {
 
 TextCursorImpl::TextCursorImpl(const TextBlock & firstBlock)
@@ -133,7 +136,7 @@ void TextCursor::setPosition(const Position & pos, MoveMode mode)
   {
     mImpl->block = next(mImpl->block, pos.line - mImpl->pos.line);
     mImpl->pos.line = pos.line;
-    mImpl->pos.column = std::min(std::max(0, pos.column), mImpl->block.length());
+    mImpl->pos.column = std::min({ std::max({ 0, pos.column }), mImpl->block.length() });
   }
 
   if (mode == MoveAnchor)
@@ -290,45 +293,43 @@ bool TextCursor::hasSelection() const
   return position() != anchor();
 }
 
-QString TextCursor::selectedText() const
+std::string TextCursor::selectedText() const
 {
   if (!hasSelection())
-    return QString();
+    return std::string();
 
   auto start = selectionStart();
   auto end = selectionEnd();
 
   if (start.line == end.line)
-    return block().text().mid(start.column, end.column - start.column);
+    return block().text().substr(start.column, end.column - start.column);
 
   TextBlock b = start == position() ? block() : prev(block(), end.line - start.line);
 
-  QString result = b.text().mid(start.column);
+  std::string result = b.text().substr(start.column);
 
   for (int i(start.line + 1); i < end.line; ++i)
   {
     b = b.next();
-    result.append("\n").append(b.text());
+    result.push_back('\n');
+    result.insert(result.end(), b.text().begin(), b.text().end());
   }
 
   b = b.next();
-  result.append("\n").append(b.text().left(end.column));
+  result.push_back('\n');
+  result.insert(result.end(), b.text().end() - end.column, b.text().end());
 
   return result;
 }
 
 void TextCursor::clearSelection()
 {
-  Q_ASSERT(!document()->isReadOnly());
-
   detach();
   mImpl->anchor = mImpl->pos;
 }
 
 void TextCursor::removeSelectedText()
 {
-  Q_ASSERT(!document()->isReadOnly());
-
   detach();
   document()->impl()->removeSelection(position(), block(), anchor());
 }
@@ -362,8 +363,6 @@ void TextCursor::redo()
 
 void TextCursor::deleteChar()
 {
-  Q_ASSERT(!document()->isReadOnly());
-
   if (hasSelection())
   {
     removeSelectedText();
@@ -377,8 +376,6 @@ void TextCursor::deleteChar()
 
 void TextCursor::deletePreviousChar()
 {
-  Q_ASSERT(!document()->isReadOnly());
-
   if (hasSelection())
   {
     removeSelectedText();
@@ -392,8 +389,6 @@ void TextCursor::deletePreviousChar()
 
 void TextCursor::insertBlock()
 {
-  Q_ASSERT(!document()->isReadOnly());
-
   detach();
   
   if (hasSelection())
@@ -402,35 +397,50 @@ void TextCursor::insertBlock()
   mDocument->impl()->insertBlock(position(), block());
 }
 
-void TextCursor::insertText(const QString & text)
+static std::vector<std::string> split_str(const std::string& text, char c)
 {
-  Q_ASSERT(!document()->isReadOnly());
+  std::vector<std::string> result;
 
+  size_t start = 0;
+  size_t end = text.find(c);
+
+  while (end != std::string::npos)
+  {
+    result.push_back(std::string(text.begin() + start, text.begin() + end));
+    start = end + 1;
+    end = text.find(c, start);
+  }
+
+  result.push_back(std::string(text.begin() + start, text.end()));
+
+  return result;
+}
+
+void TextCursor::insertText(const std::string& text)
+{
   detach();
 
   if (hasSelection())
     removeSelectedText();
 
-  QStringList lines = text.split(QChar('\n'));
+  std::vector<std::string> lines = split_str(text, '\n');
   for (auto & l : lines)
   {
-    if (l.endsWith(QChar('\r')))
-      l.chop(1);
+    if (l.back() == '\r')
+      l.pop_back();
   }
 
-  for (int i(0); i < lines.count(); ++i)
+  for (size_t i(0); i < lines.size(); ++i)
   {
     mDocument->impl()->insertText(position(), block(), lines.at(i));
 
-    if (i != lines.count() - 1)
+    if (i != lines.size() - 1)
       insertBlock();
   }
 }
 
-void TextCursor::insertChar(const QChar & c)
+void TextCursor::insertChar(unicode::Character c)
 {
-  Q_ASSERT(!document()->isReadOnly());
-
   detach();
 
   if (hasSelection())
@@ -508,4 +518,4 @@ bool TextCursor::operator<(const TextCursor & other) const
   return position() < other.position();
 }
 
-} // namespace textedit
+} // namespace typewriter
