@@ -1,13 +1,11 @@
-// Copyright (C) 2018 Vincent Chambrin
-// This file is part of the textedit library
+// Copyright (C) 2020 Vincent Chambrin
+// This file is part of the typewriter library
 // For conditions of distribution and use, see copyright notice in LICENSE
 
-#ifndef TEXTEDIT_VIEW_FORMAT_RANGE_H
-#define TEXTEDIT_VIEW_FORMAT_RANGE_H
+#ifndef TYPEWRITER_VIEW_FORMAT_RANGE_H
+#define TYPEWRITER_VIEW_FORMAT_RANGE_H
 
-#include "textedit/textformat.h"
-
-namespace textedit
+namespace typewriter
 {
 
 namespace view
@@ -15,13 +13,13 @@ namespace view
 
 struct FormatRange
 {
-  TextFormat format;
-  int start;
-  int length;
+  int format_id = 0;
+  size_t start;
+  size_t length;
 };
 
 } // namespace view
 
-} // namespace textedit
+} // namespace typewriter
 
-#endif // !TEXTEDIT_VIEW_FORMAT_RANGE_H
+#endif // !TYPEWRITER_VIEW_FORMAT_RANGE_H

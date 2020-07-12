@@ -250,7 +250,7 @@ TextBlock & TextBlock::operator=(const TextBlock & other)
 
 bool TextBlock::operator==(const TextBlock & other) const
 {
-  return mDocument == other.mDocument && blockNumber() == other.blockNumber();
+  return mDocument == other.mDocument && other.mImpl == mImpl;
 }
 
 bool TextBlock::operator!=(const TextBlock & other) const

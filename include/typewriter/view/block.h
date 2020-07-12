@@ -1,17 +1,19 @@
 // Copyright (C) 2018 Vincent Chambrin
-// This file is part of the textedit library
+// This file is part of the typewriter library
 // For conditions of distribution and use, see copyright notice in LICENSE
 
-#ifndef TEXTEDIT_VIEW_BLOCK_H
-#define TEXTEDIT_VIEW_BLOCK_H
+#ifndef TYPEWRITER_VIEW_BLOCK_H
+#define TYPEWRITER_VIEW_BLOCK_H
 
-#include "textedit/textblock.h"
-#include "textedit/view/formatrange.h"
+#include "typewriter/textblock.h"
+#include "typewriter/view/formatrange.h"
+#include "typewriter/view/line.h"
 
-#include <QLinkedList>
-#include <QVector>
+#include <list>
+#include <vector>
+#include <memory>
 
-namespace textedit
+namespace typewriter
 {
 
 class TextView;
@@ -21,16 +23,16 @@ namespace view
 {
 
 class Fragment;
-class LineElement;
 
 struct BlockInfo
 {
   TextBlock block;
-  QVector<FormatRange> formats;
+  std::vector<FormatRange> formats;
   int userstate;
   int revision;
-  bool forceHighlighting;
-  std::vector<std::unique_ptr<LineElement>> display;
+  std::weak_ptr<BlockInfo> prev;
+  std::weak_ptr<BlockInfo> next;
+  std::list<view::LineInfo>::iterator line;
 
 public:
   BlockInfo(const TextBlock & b);
@@ -38,81 +40,8 @@ public:
   ~BlockInfo();
 };
 
-using BlockInfoList = QList<std::shared_ptr<BlockInfo>>;
-
-struct ActiveFold;
-
-class TEXTEDIT_API Block
-{
-public:
-  Block();
-  Block(const Block & other);
-  ~Block();
-
-  Block(TextViewImpl *view);
-  Block(int num, TextViewImpl *view);
-  
-  inline int number() const { return mNumber; }
-  TextBlock block() const;
-  inline const QString & text() const { return block().text(); }
-
-  Block next() const;
-  Block previous() const;
-  void seekNext();
-  void seekPrevious();
-  void seek(int num);
-
-  bool isFirst() const;
-  bool isLast() const;
-
-  bool needsRehighlight() const;
-  void rehighlight();
-  void rehighlightLater();
-
-  const QVector<FormatRange> & formats() const;
-
-  const int userState() const;
-
-  int span() const;
-  QString displayedText() const;
-
-  Fragment begin() const;
-  Fragment end() const;
-
-  BlockInfo & impl();
-  const BlockInfo & impl() const;
-
-  Block & operator=(const Block & other) = default;
-
-  bool operator==(const Block & other) const;
-  bool operator!=(const Block & other) const;
-  bool operator<(const Block & other) const;
-
-private:
-  int mNumber;
-  TextViewImpl *mView;
-};
-
-class TEXTEDIT_API Blocks
-{
-public:
-  explicit Blocks(TextViewImpl *view);
-  Blocks(const Blocks & other) = default;
-  ~Blocks() = default;
-
-  int count() const;
-  Block begin() const;
-  Block end() const;
-  Block at(int index) const;
-
-  Blocks & operator=(const Blocks & other) = default;
-
-private:
-  TextViewImpl *mView;
-};
-
 } // namespace view
 
-} // namespace textedit
+} // namespace typewriter
 
-#endif // !TEXTEDIT_VIEW_BLOCK_H
+#endif // !TYPEWRITER_VIEW_BLOCK_H

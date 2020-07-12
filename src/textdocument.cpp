@@ -104,7 +104,7 @@ void TextDocumentImpl::insertBlock(Position pos, const TextBlock & block)
 
   this->lineCount += 1;
 
-  block.impl()->content.erase(block.impl()->content.begin() + block.length() - pos.column, block.impl()->content.end());
+  block.impl()->content.erase(block.impl()->content.begin() + pos.column, block.impl()->content.end());
   block.impl()->revision += 1;
 
   // Update cursors
@@ -330,6 +330,24 @@ void TextDocumentImpl::remove_block(int blocknum, TextBlock block)
     l->blockDestroyed(blocknum, block);
   }
 }
+
+namespace str_utils
+{
+
+void replace_all(std::string& str, char c, const std::string& repl)
+{
+  size_t off = 0;
+  size_t pos = str.find(c, off);
+
+  while (pos != std::string::npos)
+  {
+    str.replace(pos, 1, repl);
+    off = pos + repl.size();
+    pos = str.find(c, off);
+  }
+}
+
+} // namespace str_utils
 
 
 TextDocumentListener::TextDocumentListener()

@@ -1,89 +1,135 @@
-// Copyright (C) 2018 Vincent Chambrin
-// This file is part of the textedit library
+// Copyright (C) 2020 Vincent Chambrin
+// This file is part of the typewriter library
 // For conditions of distribution and use, see copyright notice in LICENSE
 
-#ifndef TEXTEDIT_TEXTVIEW_P_H
-#define TEXTEDIT_TEXTVIEW_P_H
+#ifndef TYPEWRITER_TEXTVIEW_P_H
+#define TYPEWRITER_TEXTVIEW_P_H
 
-#include "textedit/textedit.h"
+#include "typewriter/typewriter-defs.h"
 
-//#include "textedit/textfold.h"
-//#include "textedit/gutter.h"
-//#include "textedit/view/block.h"
-//#include "textedit/view/incrusted-widget.h"
-//#include "textedit/view/line.h"
-//#include "textedit/view/metrics.h"
-//#include "textedit/syntaxhighlighter.h"
-//#include "textedit/textview.h"
-//
-//#include <QFont>
-//#include <QLinkedList>
-//#include <QVector>
-//
-//namespace textedit
-//{
-//
-//class TextDocument;
-//
-//class TextViewImpl
-//{
-//public:
-//  TextDocument *document;
-//  
-//  view::BlockInfoList blocks;
-//  view::Line firstLine;
-//  view::Line longestLine;
-//  int linecount;
-//
-//  QFont font;
-//  view::Metrics metrics;
-//
-//  TextFormat defaultFormat;
-//  QString tabreplace;
-//
-//  TextFoldList folds;
-//
-//  QRect viewport;
-//  QScrollBar *hscrollbar;
-//  Qt::ScrollBarPolicy hpolicy;
-//  QScrollBar *vscrollbar;
-//  Qt::ScrollBarPolicy vpolicy;
-//
-//  SyntaxHighlighter *syntaxHighlighter;
-//  Position firstDirtyBlock; // first line that needs highlighting
-//
-//  Gutter *gutter;
-//
-//  QList<view::IncrustedWidget> widgets;
-//
-//public:
-//  TextViewImpl(TextDocument *doc);
-//
-//  void calculateMetrics(const QFont & f);
-//
-//  /// TODO: take into account tabreplace
-//  view::Line findLongestLine();
-//  void setLongestLine(const view::Line & line);
-//
-//  int getFold(int blocknum, int from = 0) const;
-//  void addFold(const TextFold & f);
-//  void removeFold(int index);
-//  void activateFold(int index, bool active = true);
-//
-//  void relayout(int blocknum);
-//
-//  /// TODO: highlightUpToLine(view::Block l);
-//  // similar to checkNeedsHighlighting
-//  void seekFirstDirtyLine(view::Block previous);
-//  bool checkNeedsHighlighting(view::Block l);
-//  void highlightLine(view::Block l);
-//  int invokeSyntaxHighlighter(view::Block l);
-//
-//  inline view::BlockInfo & blockInfo(int n) const { return *blocks.at(n); }
-//
-//  inline int ncol(QChar c) const { return c == QChar('\t') ? tabreplace.size() : 1; }
-//};
-//
-//} // namespace textedit
+#include "typewriter/textfold.h"
+#include "typewriter/view/block.h"
+#include "typewriter/view/inserts.h"
+#include "typewriter/textview.h"
 
-#endif // !TEXTEDIT_TEXTVIEW_P_H
+#include <list>
+#include <unordered_map>
+#include <vector>
+
+namespace typewriter
+{
+
+class TextDocument;
+
+class TextViewImpl
+{
+public:
+  TextDocument *document;
+  
+  std::unordered_map<TextBlockImpl*, std::shared_ptr<view::BlockInfo>> blocks;
+  std::list<view::LineInfo> lines;
+  int longest_line_length = 0;
+  int linecount;
+
+  int cpl = -1;
+  std::string tabreplace;
+
+  std::vector<SimpleTextFold> folds;
+  std::vector<view::Insert> inserts;
+  std::vector<view::InlineInsert> inline_inserts;
+
+public:
+  TextViewImpl(TextDocument *doc);
+
+  void refreshLongestLineLength();
+
+  //inline view::BlockInfo & blockInfo(int n) const { return *blocks.at(n); }
+
+  inline int ncol(char c) const { return c =='\t' ? tabreplace.size() : 1; }
+
+  static TextBlock getBlock(const view::LineInfo& l);
+};
+
+class Composer
+{
+private:
+  TextViewImpl* view;
+
+  struct TextBlockIterator
+  {
+    TextBlock block;
+    int line = 0;
+    int col = 0;
+  };
+
+  enum IteratorKind
+  {
+    FoldIterator,
+    InsertIterator,
+    InlineInsertIterator,
+    BlockIterator,
+    LineFeedIterator,
+  };
+
+  struct Iterator
+  {
+    TextViewImpl* view = nullptr;
+    std::vector<SimpleTextFold>::const_iterator folds;
+    std::vector<view::Insert>::const_iterator inserts;
+    int insert_row = 0;
+    std::vector<view::InlineInsert>::const_iterator inline_inserts;
+    TextBlockIterator textblock;
+    IteratorKind current = BlockIterator;
+
+    void init(TextViewImpl* v);
+    void update();
+
+    void advance();
+
+    bool atEnd() const;
+    int currentWidth() const;
+
+    void seek(const view::LineInfo& l);
+    void seek(const TextBlock& b);
+  };
+
+private:
+
+  Iterator iterator;
+
+  TextBlock current_block;
+  std::list<view::LineInfo>::iterator line_iterator;
+
+  std::vector<view::SimpleLineElement> current_line;
+  int current_line_width = 0;
+
+public:
+  explicit Composer(TextViewImpl* v);
+
+  void relayout();
+
+  void relayout(TextBlock b);
+
+  void relayout(std::list<view::LineInfo>::iterator it);
+
+  void handleBlockInsertion(const TextBlock& b);
+  void handleBlockRemoval(const TextBlock& b);
+
+  void handleFoldInsertion(std::vector<SimpleTextFold>::iterator it);
+  void handleFoldRemoval(const TextCursor& sel);
+
+protected:
+  void relayoutBlock();
+
+protected:
+  std::list<view::LineInfo>::iterator getLine(TextBlock b);
+  void writeCurrentLine();
+  void updateBlockLineIterator(TextBlock begin, TextBlock end);
+  view::SimpleLineElement createLineElement(const Iterator& it);
+  view::SimpleLineElement createCarriageReturn();
+  view::SimpleLineElement createLineIndent();
+};
+
+} // namespace typewriter
+
+#endif // !TYPEWRITER_TEXTVIEW_P_H

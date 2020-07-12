@@ -1,16 +1,16 @@
-// Copyright (C) 2018 Vincent Chambrin
-// This file is part of the textedit library
+// Copyright (C) 2020 Vincent Chambrin
+// This file is part of the typewriter library
 // For conditions of distribution and use, see copyright notice in LICENSE
 
 #ifndef TEXTEDIT_VIEW_FRAGMENT_H
 #define TEXTEDIT_VIEW_FRAGMENT_H
 
-#include "textedit/textblock.h"
-#include "textedit/view/formatrange.h"
+#include "typewriter/textblock.h"
+#include "typewriter/view/formatrange.h"
 
-#include <QVector>
+#include <vector>
 
-namespace textedit
+namespace typewriter
 {
 
 class TextView;
@@ -21,23 +21,23 @@ namespace view
 
 struct BlockInfo;
 
-class TEXTEDIT_API Fragment
+class TYPEWRITER_API Fragment
 {
 public:
   Fragment();
   Fragment(const Fragment & other) = default;
   ~Fragment();
 
-  Fragment(BlockInfo const *line, int col, QVector<FormatRange>::const_iterator iter, QVector<FormatRange>::const_iterator sentinel, TextViewImpl const *view);
+  Fragment(BlockInfo const *line, int col, std::vector<FormatRange>::const_iterator iter, std::vector<FormatRange>::const_iterator sentinel, TextViewImpl const *view);
   
   inline bool isNull() const { return mView == nullptr; }
 
-  const TextFormat & format() const;
+  int format() const;
   int position() const;
   int length() const;
 
   TextBlock block() const;
-  QString text() const;
+  std::string text() const;
 
   Fragment next() const;
 
@@ -52,13 +52,13 @@ protected:
 private:
   BlockInfo const *mLine;
   int mColumn;
-  QVector<FormatRange>::const_iterator mIterator;
-  QVector<FormatRange>::const_iterator mSentinel;
+  std::vector<FormatRange>::const_iterator mIterator;
+  std::vector<FormatRange>::const_iterator mSentinel;
   TextViewImpl const *mView;
 };
 
 } // namespace view
 
-} // namespace textedit
+} // namespace typewriter
 
 #endif // !TEXTEDIT_VIEW_FRAGMENT_H

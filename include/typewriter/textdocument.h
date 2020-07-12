@@ -21,6 +21,13 @@ class TextDocumentImpl;
 
 class TextDocument;
 
+namespace str_utils
+{
+
+void replace_all(std::string& str, char c, const std::string& repl);
+
+} // namespace str_utils
+
 class TYPEWRITER_API TextDocumentListener
 {
 private:
@@ -33,6 +40,12 @@ public:
 
   TextDocument* document() const;
 
+  /*!
+   * \fn virtual void blockInserted(const Position& pos, const TextBlock& newblock);
+   * \param position in the previous block
+   * \param newly inserted block
+   * \brief notifies that a new block was inserted
+   */
   virtual void blockInserted(const Position& pos, const TextBlock& newblock);
   virtual void blockCountChanged(int newBlockCount);
   virtual void blockDestroyed(int line, const TextBlock& block);

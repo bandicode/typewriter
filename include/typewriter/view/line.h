@@ -1,17 +1,18 @@
-// Copyright (C) 2018 Vincent Chambrin
-// This file is part of the textedit library
+// Copyright (C) 2020 Vincent Chambrin
+// This file is part of the typewriter library
 // For conditions of distribution and use, see copyright notice in LICENSE
 
-#ifndef TEXTEDIT_VIEW_LINE_H
-#define TEXTEDIT_VIEW_LINE_H
+#ifndef TYPEWRITER_VIEW_LINE_H
+#define TYPEWRITER_VIEW_LINE_H
 
-#include "textedit/textblock.h"
-#include "textedit/view/formatrange.h"
+#include "typewriter/textblock.h"
+#include "typewriter/stringview.h"
+#include "typewriter/view/formatrange.h"
 
-#include <QLinkedList>
-#include <QVector>
+#include <list>
+#include <vector>
 
-namespace textedit
+namespace typewriter
 {
 
 class TextView;
@@ -23,139 +24,45 @@ namespace view
 class Block;
 class Fragment;
 
-class TEXTEDIT_API LineElements
+struct SimpleLineElement
 {
-public:
-  LineElements(TextViewImpl *view, int bn, int row);
-
-  class Iterator
+  enum Kind
   {
-  public:
-    Iterator(TextViewImpl *view, int bn, int tb, int ei);
-    Iterator(const Iterator &) = default;
-    ~Iterator() = default;
-
-    bool isFold() const;
-    int foldid() const;
-
-    bool isBlockFragment() const;
-    int block() const;
-    int blockBegin() const;
-    int blockEnd() const;
-    QStringRef text() const;
-
-    int colcount() const;
-
-    Iterator & operator++();
-
-    Iterator & operator=(const Iterator &) = default;
-    bool operator==(const Iterator & other) const;
-    bool operator!=(const Iterator & other) const;
-
-  private:
-    TextViewImpl *mView;
-    int mBlockNumber;
-    int mTargetBlock;
-    int mElementIndex;
+    LE_BlockFragment,
+    LE_Fold,
+    LE_Insert,
+    LE_InlineInsert,
+    LE_CarriageReturn,
+    LE_LineIndent,
   };
 
-  int count() const;
-  Iterator begin() const;
-  Iterator end() const;
-
-private:
-  TextViewImpl *mView;
-  int mBlockNumber;
-  int mRow;
+  Kind kind = LE_BlockFragment;
+  TextBlock block;
+  int begin = 0;
+  int width = 0;
+  int id = -1; // fold-id or insert-id or inline-insert-id
+  int nbrow = 0;
 };
 
-class TEXTEDIT_API Line
+struct LineInfo
 {
-public:
-  Line() = delete;
-  Line(const Line & other) = default;
-  ~Line() = default;
-  
-  inline int number() const { return mNumber; }
-  inline int row() const { return mRow; }
+  std::vector<SimpleLineElement> elements;
 
-  Line next() const;
-  Line previous() const;
-  void seekNext();
-  void seekPrevious();
-  void seek(int num);
+  int width() const
+  {
+    int w = 0;
 
-  bool isFirst() const;
-  bool isLast() const;
+    for (const auto& e : this->elements)
+    {
+      w += e.width;
+    }
 
-  inline bool isWidget() const { return mWidgetNumber >= 0; }
-  QWidget* widget() const;
-  int widgetSpan() const;
-
-  bool isBlock() const;
-  int blockNumber() const;
-  view::Block block() const;
-
-  bool isComplex() const;
-  LineElements elements() const;
-
-  int colcount() const;
-
-  Line & operator++();
-
-  Line & operator=(const Line & other) = default;
-
-  inline bool operator==(const Line & other) const { return mNumber == other.mNumber; }
-  inline bool operator!=(const Line & other) const { return mNumber != other.mNumber; }
-  inline bool operator<(const Line & other) const { return mNumber < other.mNumber; }
-
-protected:
-  friend class Blocks;
-  friend class Lines;
-  friend class TextView;
-  friend class TextViewImpl;
-
-  Line(TextViewImpl *view);
-  Line(int num, int blocknum, int widgetnum, int row, TextViewImpl *view);
-
-  void notifyCharsAddedOrRemoved(const Position & pos, int added, int removed, int spanBefore);
-  void notifyBlockDestroyed(int linenum, const int destroyed_span, const int prev_old_span, const int prev_new_span);
-  void notifyBlockInserted(const Position & pos, const int spanBefore);
-
-private:
-  TextViewImpl *mView;
-  int mNumber;
-  int mBlockNumber;
-  int mWidgetNumber;
-  int mRow;
-};
-
-class TEXTEDIT_API Lines
-{
-public:
-  Lines(TextViewImpl *view, int block = -1);
-  Lines(const Lines & other) = default;
-  ~Lines() = default;
-
-  enum Options {
-    AllLines = -1,
-    VisibleLines = -2,
-  };
-
-  int count() const;
-  Line begin() const;
-  Line end() const;
-  Line at(int index) const;
-
-  Lines & operator=(const Lines & other) = default;
-
-private:
-  TextViewImpl *mView;
-  int mBlock; // -1 if no Block, -2 for visible lines
+    return w;
+  }
 };
 
 } // namespace view
 
-} // namespace textedit
+} // namespace typewriter
 
-#endif // !TEXTEDIT_VIEW_BLOCK_H
+#endif // !TYPEWRITER_VIEW_LINE_H
