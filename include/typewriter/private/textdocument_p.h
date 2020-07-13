@@ -8,7 +8,6 @@
 #include "typewriter/textdiff.h"
 
 #include "typewriter/private/textblock_p.h"
-#include "typewriter/private/textcursor_p.h"
 
 #include <unicode/unicode.h>
 
@@ -27,7 +26,7 @@ public:
   TextBlockRef firstBlock;
   TextBlockRef lastBlock;
 
-  std::vector<TextCursorImpl*> cursors;
+  std::vector<TextCursor*> cursors;
 
   std::vector<std::unique_ptr<TextDocumentListener>> listeners;
 
@@ -41,8 +40,9 @@ public:
   int blockNumber(TextBlockImpl *block) const;
   int blockOffset(TextBlockImpl *block) const;
 
-  TextCursorImpl* createCursor(const Position & pos, const TextBlock & b);
-  void destroyCursor(TextCursorImpl *cursor);
+  void register_cursor(TextCursor* c);
+  void swap_cursor(TextCursor* existing_cursor, TextCursor* new_cursor) noexcept;
+  void deregister_cursor(TextCursor* c) noexcept;
 
   void insertBlock(Position pos, const TextBlock & block);
   void insertChar(Position pos, const TextBlock & block, unicode::Character c);

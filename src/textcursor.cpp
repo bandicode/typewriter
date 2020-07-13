@@ -3,7 +3,6 @@
 // For conditions of distribution and use, see copyright notice in LICENSE
 
 #include "typewriter/textcursor.h"
-#include "typewriter/private/textcursor_p.h"
 
 #include "typewriter/textblock.h"
 #include "typewriter/textdocument.h"
@@ -15,95 +14,85 @@
 namespace typewriter
 {
 
-TextCursorImpl::TextCursorImpl(const TextBlock & firstBlock)
-  : ref(0)
-  , block(firstBlock)
-{
-  pos.line = 0;
-  pos.column = 0;
-
-  anchor = pos;
-}
-
-TextCursorImpl::TextCursorImpl(const Position & p, const TextBlock & b)
-  : ref(0)
-  , block(b)
-  , pos(p)
-{
-  anchor = pos;
-}
-
 TextCursor::TextCursor()
-  : mDocument(nullptr)
-  , mImpl(nullptr)
+  : m_document(nullptr)
 {
 
 }
 
-TextCursor::TextCursor(const TextCursor & other)
-  : mDocument(other.mDocument)
-  , mImpl(other.mImpl)
+TextCursor::TextCursor(const TextCursor& other)
+  : m_document(other.m_document),
+    m_block(other.m_block),
+    m_pos(other.m_pos),
+    m_anchor(other.m_anchor)
 {
-  if (mImpl)
+  if (m_document)
   {
-    mImpl->ref++;
+    m_document->impl()->register_cursor(this);
   }
 }
 
-TextCursor::TextCursor(TextCursor && other)
-  : mDocument(other.mDocument)
-  , mImpl(other.mImpl)
+TextCursor::TextCursor(TextCursor&& other)
+  : m_document(other.m_document),
+    m_block(other.m_block),
+    m_pos(other.m_pos),
+    m_anchor(other.m_anchor)
 {
-  other.mDocument = nullptr;
-  other.mImpl = nullptr;
+  if (m_document)
+  {
+    m_document->impl()->swap_cursor(&other, this);
+    other.m_document = nullptr;
+  }
 }
 
 TextCursor::~TextCursor()
 {
-  if (mImpl)
+  if (m_document)
   {
-    if (--mImpl->ref == 0)
-      mDocument->impl()->destroyCursor(mImpl);
+    m_document->impl()->deregister_cursor(this);
   }
 }
 
 TextCursor::TextCursor(TextDocument *document)
-  : mDocument(document)
-  , mImpl(nullptr)
+  : m_document(document)
 {
-  if (mDocument)
-    mImpl = mDocument->impl()->createCursor(Position{ 0, 0 }, document->firstBlock());
+  if (m_document)
+  {
+    m_block = document->firstBlock();
+    m_pos = Position{ 0, 0 };
+    m_anchor = m_pos;
+    
+    document->impl()->register_cursor(this);
+  }
 }
 
-TextCursor::TextCursor(const TextBlock & block)
-  : mDocument(nullptr)
-  , mImpl(nullptr)
+TextCursor::TextCursor(const TextBlock& block)
+  : m_document(nullptr)
 {
   if (!block.isValid())
     return;
 
-  mDocument = block.document()->impl()->document;
-  mImpl = mDocument->impl()->createCursor(Position{ block.blockNumber(), 0 }, block);
+  m_document = block.document()->impl()->document;
+  m_block = block;
+  m_pos = Position{ block.blockNumber(), 0 };
+  m_anchor = m_pos;
+
+  m_document->impl()->register_cursor(this);
 }
 
 bool TextCursor::isNull() const
 {
-  return mImpl == nullptr;
-}
-
-bool TextCursor::isCopyOf(const TextCursor & other) const
-{
-  return mImpl == other.mImpl;
+  return m_document == nullptr;
 }
 
 TextDocument* TextCursor::document() const
 {
-  return mDocument;
+  return m_document;
 }
 
 const Position & TextCursor::position() const
 {
-  return mImpl->pos;
+  return m_pos;
 }
 
 int TextCursor::offset() const
@@ -113,7 +102,7 @@ int TextCursor::offset() const
 
 const Position & TextCursor::anchor() const
 {
-  return mImpl->anchor;
+  return m_anchor;
 }
 
 void TextCursor::setPosition(const Position & pos, MoveMode mode)
@@ -122,132 +111,133 @@ void TextCursor::setPosition(const Position & pos, MoveMode mode)
 
   if (pos.line >= document()->lineCount() || (pos.line == document()->lineCount() - 1 && pos.column >= document()->lastBlock().length()))
   {
-    mImpl->pos.line = document()->lineCount() - 1;
-    mImpl->pos.column = document()->lastBlock().length();
-    mImpl->block = document()->lastBlock();
+    m_pos.line = document()->lineCount() - 1;
+    m_pos.column = document()->lastBlock().length();
+    m_block = document()->lastBlock();
   }
   else if (pos.line < 0 || (pos.line == 0 && pos.column < 0))
   {
-    mImpl->pos.line = 0;
-    mImpl->pos.column = 0;
-    mImpl->block = document()->firstBlock();
+    m_pos.line = 0;
+    m_pos.column = 0;
+    m_block = document()->firstBlock();
   }
   else 
   {
-    mImpl->block = next(mImpl->block, pos.line - mImpl->pos.line);
-    mImpl->pos.line = pos.line;
-    mImpl->pos.column = std::min({ std::max({ 0, pos.column }), mImpl->block.length() });
+    m_block = next(m_block, pos.line - m_pos.line);
+    m_pos.line = pos.line;
+    m_pos.column = std::min({ std::max({ 0, pos.column }), m_block.length() });
   }
 
   if (mode == MoveAnchor)
-    mImpl->anchor = mImpl->pos;
+    m_anchor = m_pos;
 }
 
 class MoveGuard
 {
 public:
-  TextCursorImpl * cursor;
+  Position* anchor;
+  Position* pos;
   TextCursor::MoveMode mode;
 
   ~MoveGuard()
   {
     if (mode == TextCursor::MoveAnchor)
     {
-      cursor->anchor = cursor->pos;
+      *anchor = *pos;
     }
   }
 };
 
-bool TextCursorImpl::move_down(int n)
+bool TextCursor::move_down(int n)
 {
-  const int count = std::min(n, this->block.document()->lineCount() - 1 - this->pos.line);
+  const int count = std::min(n, m_block.document()->lineCount() - 1 - m_pos.line);
 
   for (int i(0); i < count; ++i)
   {
-    this->pos.line += 1;
-    this->block = this->block.next();
+    m_pos.line += 1;
+    m_block = m_block.next();
   }
 
-  if (this->pos.column > this->block.length())
-    this->pos.column = this->block.length();
+  if (m_pos.column > m_block.length())
+    m_pos.column = m_block.length();
 
   return count == n;
 }
 
-bool TextCursorImpl::move_left(int n)
+bool TextCursor::move_left(int n)
 {
-  this->pos.column -= n;
+  m_pos.column -= n;
 
-  while (this->pos.column < 0 && this->pos.line > 0)
+  while (m_pos.column < 0 && m_pos.line > 0)
   {
-    this->block = this->block.previous();
-    this->pos.column += this->block.length() + 1;
-    this->pos.line -= 1;
+    m_block = m_block.previous();
+    m_pos.column += m_block.length() + 1;
+    m_pos.line -= 1;
   }
 
-  if (this->pos.column < 0)
+  if (m_pos.column < 0)
   {
-    this->pos.column = 0;
+    m_pos.column = 0;
     return false;
   }
 
   return true;
 }
 
-bool TextCursorImpl::move_right(int n)
+bool TextCursor::move_right(int n)
 {
-  const int maxline = this->block.document()->lineCount() - 1;
+  const int maxline = m_block.document()->lineCount() - 1;
 
-  this->pos.column += n;
+  m_pos.column += n;
 
-  while (this->pos.column > this->block.length() && this->pos.line < maxline)
+  while (m_pos.column > m_block.length() && m_pos.line < maxline)
   {
-    this->pos.column -= this->block.length() + 1;
-    this->block = this->block.next();
-    this->pos.line += 1;
+    m_pos.column -= m_block.length() + 1;
+    m_block = m_block.next();
+    m_pos.line += 1;
   }
 
-  if (this->pos.column > this->block.length())
+  if (m_pos.column > m_block.length())
   {
-    this->pos.column = this->block.length();
+    m_pos.column = m_block.length();
     return false;
   }
 
   return true;
 }
 
-bool TextCursorImpl::move_up(int n)
+bool TextCursor::move_up(int n)
 {
-  const int count = std::min(n, this->pos.line);
+  const int count = std::min(n, m_pos.line);
 
   for (int i(0); i < count; ++i)
   {
-    this->pos.line -= 1;
-    this->block = this->block.previous();
+    m_pos.line -= 1;
+    m_block = m_block.previous();
   }
 
-  if (this->pos.column > this->block.length())
-    this->pos.column = this->block.length();
+  if (m_pos.column > m_block.length())
+    m_pos.column = m_block.length();
 
   return count == n;
 }
 
 bool TextCursor::movePosition(MoveOperation operation, MoveMode mode, int n)
 {
-  MoveGuard anchor_move{ mImpl, mode };
+  MoveGuard anchor_move{ &m_anchor, &m_pos, mode };
 
   switch (operation)
   {
   case NoMove:
     return true;
   case Down:
-    return mImpl->move_down(n);
+    return move_down(n);
   case Left:
-    return mImpl->move_left(n);
+    return move_left(n);
   case Right:
-    return mImpl->move_right(n);
+    return move_right(n);
   case Up:
-    return mImpl->move_up(n);
+    return move_up(n);
   default:
     return false;
   }
@@ -265,7 +255,7 @@ bool TextCursor::atStart() const
 
 TextBlock TextCursor::block() const
 {
-  return isNull() ? TextBlock{} : mImpl->block;
+  return isNull() ? TextBlock{} : m_block;
 }
 
 bool TextCursor::atBlockEnd() const
@@ -325,7 +315,7 @@ std::string TextCursor::selectedText() const
 void TextCursor::clearSelection()
 {
   detach();
-  mImpl->anchor = mImpl->pos;
+  m_anchor = m_pos;
 }
 
 void TextCursor::removeSelectedText()
@@ -371,7 +361,7 @@ void TextCursor::deleteChar()
 
   detach();
 
-  mDocument->impl()->deleteChar(position(), block());
+  m_document->impl()->deleteChar(position(), block());
 }
 
 void TextCursor::deletePreviousChar()
@@ -384,7 +374,7 @@ void TextCursor::deletePreviousChar()
 
   detach();
 
-  mDocument->impl()->deletePreviousChar(position(), block());
+  m_document->impl()->deletePreviousChar(position(), block());
 }
 
 void TextCursor::insertBlock()
@@ -394,7 +384,7 @@ void TextCursor::insertBlock()
   if (hasSelection())
     removeSelectedText();
 
-  mDocument->impl()->insertBlock(position(), block());
+  m_document->impl()->insertBlock(position(), block());
 }
 
 static std::vector<std::string> split_str(const std::string& text, char c)
@@ -432,7 +422,7 @@ void TextCursor::insertText(const std::string& text)
 
   for (size_t i(0); i < lines.size(); ++i)
   {
-    mDocument->impl()->insertText(position(), block(), lines.at(i));
+    m_document->impl()->insertText(position(), block(), lines.at(i));
 
     if (i != lines.size() - 1)
       insertBlock();
@@ -446,69 +436,94 @@ void TextCursor::insertChar(unicode::Character c)
   if (hasSelection())
     removeSelectedText();
 
-  mDocument->impl()->insertChar(position(), block(), c);
+  m_document->impl()->insertChar(position(), block(), c);
 }
 
 
-void TextCursor::swap(TextCursor & other)
+void TextCursor::swap(TextCursor& other)
 {
-  TextCursorImpl *d = mImpl;
-  TextDocument *doc = mDocument;
-
-  mImpl = other.mImpl;
-  mDocument = other.mDocument;
-
-  other.mImpl = d;
-  other.mDocument = doc;
+  if (other.m_document != m_document)
+  {
+    TextCursor tmp{ *this };
+    *this = other;
+    other = tmp;
+  }
+  else
+  {
+    std::swap(m_block, other.m_block);
+    std::swap(m_pos, other.m_pos);
+    std::swap(m_anchor, other.m_anchor);
+  }
 }
 
 void TextCursor::detach()
 {
-  if (mImpl->ref == 1)
-    return;
 
-  TextCursorImpl *self = mImpl;
-  self->ref -= 1;
-
-  mImpl = mDocument->impl()->createCursor(position(), block());
-  mImpl->anchor = self->anchor;
 }
 
-TextCursor & TextCursor::operator=(const TextCursor & other)
+TextCursor & TextCursor::operator=(const TextCursor& other)
 {
   if (this == &other)
     return *this;
 
-  if (mImpl)
+  if (m_document && m_document != other.m_document)
   {
-    if(--mImpl->ref == 0)
-      mDocument->impl()->destroyCursor(mImpl);
+    m_document->impl()->deregister_cursor(this);
+    m_document = nullptr;
   }
 
-  mDocument = other.mDocument;
-  mImpl = other.mImpl;
-  if (mImpl)
-    mImpl->ref++;
+
+  if (!m_document && other.m_document)
+  {
+    m_document = other.m_document;
+    m_document->impl()->register_cursor(this);
+  }
+
+  m_block = other.m_block;
+  m_pos = other.m_pos;
+  m_anchor = other.m_anchor;
 
   return *this;
 }
 
-TextCursor & TextCursor::operator=(TextCursor && other)
+TextCursor& TextCursor::operator=(TextCursor&& other)
 {
-  if (this == &other)
-    return *this;
-
-  if (mImpl)
+  if (m_document)
   {
-    if (--mImpl->ref == 0)
-      mDocument->impl()->destroyCursor(mImpl);
+    if (m_document != other.document())
+    {
+      m_document->impl()->deregister_cursor(this);
+
+      m_document = other.m_document;
+      m_block = other.m_block;
+      m_pos = other.m_pos;
+      m_anchor = other.m_anchor;
+
+      if (m_document)        
+        m_document->impl()->swap_cursor(&other, this);
+    }
+    else
+    {
+      assert(m_document == other.m_document);
+      m_block = other.m_block;
+      m_pos = other.m_pos;
+      m_anchor = other.m_anchor;
+
+      m_document->impl()->deregister_cursor(&other);
+    }
+  }
+  else
+  {
+    m_document = other.m_document;
+    m_block = other.m_block;
+    m_pos = other.m_pos;
+    m_anchor = other.m_anchor;
+
+    if (m_document)
+      m_document->impl()->swap_cursor(&other, this);
   }
 
-  mDocument = other.mDocument;
-  mImpl = other.mImpl;
-
-  other.mDocument = nullptr;
-  other.mImpl = nullptr;
+  other.m_document = nullptr;
 
   return *this;
 }

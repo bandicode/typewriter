@@ -64,22 +64,30 @@ int TextDocumentImpl::blockOffset(TextBlockImpl *block) const
   return -1;
 }
 
-TextCursorImpl* TextDocumentImpl::createCursor(const Position & pos, const TextBlock & b)
+void TextDocumentImpl::register_cursor(TextCursor* c)
 {
-  TextCursorImpl *ret = new TextCursorImpl(pos, b);
-  ret->ref = 1;
-  this->cursors.push_back(ret);
-  return ret;
+  assert(c != nullptr);
+  this->cursors.push_back(c);
 }
 
-void TextDocumentImpl::destroyCursor(TextCursorImpl *cursor)
+void TextDocumentImpl::swap_cursor(TextCursor* existing_cursor, TextCursor* new_cursor) noexcept
 {
-  auto it = std::find(this->cursors.begin(), this->cursors.end(), cursor);
+  for (size_t i(0); i < this->cursors.size(); ++i)
+  {
+    if (this->cursors[i] == existing_cursor)
+    {
+      this->cursors[i] = new_cursor;
+      return;
+    }
+  }
+}
+
+void TextDocumentImpl::deregister_cursor(TextCursor* c) noexcept
+{
+  auto it = std::find(this->cursors.begin(), this->cursors.end(), c);
 
   if (it != this->cursors.end())
     this->cursors.erase(it);
-
-  delete cursor;
 }
 
 void TextDocumentImpl::insertBlock(Position pos, const TextBlock & block)
@@ -110,27 +118,27 @@ void TextDocumentImpl::insertBlock(Position pos, const TextBlock & block)
   // Update cursors
   for (size_t i(0); i < this->cursors.size(); ++i)
   {
-    TextCursorImpl *c = this->cursors[i];
+    TextCursor *c = this->cursors[i];
 
-    if (c->pos.line == pos.line && c->pos.column >= pos.column)
+    if (c->m_pos.line == pos.line && c->m_pos.column >= pos.column)
     {
-      c->pos.line += 1;
-      c->pos.column -= block.length();
-      c->block = c->block.next();
+      c->m_pos.line += 1;
+      c->m_pos.column -= block.length();
+      c->m_block = c->m_block.next();
     }
-    else if (c->pos.line > pos.line)
+    else if (c->m_pos.line > pos.line)
     {
-      c->pos.line += 1;
+      c->m_pos.line += 1;
     }
 
-    if (c->anchor.line == pos.line && c->anchor.column >= pos.column)
+    if (c->m_anchor.line == pos.line && c->m_anchor.column >= pos.column)
     {
-      c->anchor.line += 1;
-      c->anchor.column -= block.length();
+      c->m_anchor.line += 1;
+      c->m_anchor.column -= block.length();
     }
-    else if (c->anchor.line > pos.line)
+    else if (c->m_anchor.line > pos.line)
     {
-      c->anchor.line += 1;
+      c->m_anchor.line += 1;
     }
   }
 
@@ -152,8 +160,8 @@ void TextDocumentImpl::insertChar(Position pos, const TextBlock & block, unicode
   for (size_t i(0); i < this->cursors.size(); ++i)
   {
     auto *c = this->cursors[i];
-    TextDocument::updatePositionOnContentsChange(c->pos, block, pos, 0, 1);
-    TextDocument::updatePositionOnContentsChange(c->anchor, block, pos, 0, 1);
+    TextDocument::updatePositionOnContentsChange(c->m_pos, block, pos, 0, 1);
+    TextDocument::updatePositionOnContentsChange(c->m_anchor, block, pos, 0, 1);
   }
 
   for (const auto& l : listeners)
@@ -172,8 +180,8 @@ void TextDocumentImpl::insertText(Position pos, const TextBlock & block, const s
   for (size_t i(0); i < this->cursors.size(); ++i)
   {
     auto *c = this->cursors[i];
-    TextDocument::updatePositionOnContentsChange(c->pos, block, pos, 0, str.length());
-    TextDocument::updatePositionOnContentsChange(c->anchor, block, pos, 0, str.length());
+    TextDocument::updatePositionOnContentsChange(c->m_pos, block, pos, 0, str.length());
+    TextDocument::updatePositionOnContentsChange(c->m_anchor, block, pos, 0, str.length());
   }
 
   for (const auto& l : listeners)
@@ -258,9 +266,9 @@ void TextDocumentImpl::remove_selection_singleline(const Position begin, const T
   // update cursors
   for (size_t i(0); i < this->cursors.size(); ++i)
   {
-    TextCursorImpl *c = this->cursors[i];
-    TextDocument::updatePositionOnContentsChange(c->pos, beginBlock, begin, count, 0);
-    TextDocument::updatePositionOnContentsChange(c->anchor, beginBlock, begin, count, 0);
+    TextCursor *c = this->cursors[i];
+    TextDocument::updatePositionOnContentsChange(c->m_pos, beginBlock, begin, count, 0);
+    TextDocument::updatePositionOnContentsChange(c->m_anchor, beginBlock, begin, count, 0);
   }
 
   for (const auto& l : listeners)
@@ -315,11 +323,11 @@ void TextDocumentImpl::remove_block(int blocknum, TextBlock block)
   // update cursors
   for (size_t i(0); i < this->cursors.size(); ++i)
   {
-    TextCursorImpl *c = this->cursors[i];
-    TextDocument::updatePositionOnBlockDestroyed(c->pos, blocknum, block);
-    TextDocument::updatePositionOnBlockDestroyed(c->anchor, blocknum, block);
-    if (c->pos.line == blocknum - 1)
-      c->block = prev;
+    TextCursor *c = this->cursors[i];
+    TextDocument::updatePositionOnBlockDestroyed(c->m_pos, blocknum, block);
+    TextDocument::updatePositionOnBlockDestroyed(c->m_anchor, blocknum, block);
+    if (c->m_pos.line == blocknum - 1)
+      c->m_block = prev;
   }
 
   block.impl()->setGarbage();

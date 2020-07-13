@@ -5,7 +5,7 @@
 #ifndef TYPEWRITER_TEXTCURSOR_H
 #define TYPEWRITER_TEXTCURSOR_H
 
-#include "typewriter/typewriter-defs.h"
+#include "typewriter/textblock.h"
 
 #include <unicode/unicode.h>
 
@@ -17,8 +17,6 @@ namespace typewriter
 class TextBlock;
 class TextDocument;
 
-class TextCursorImpl;
-
 class TYPEWRITER_API TextCursor
 {
 public:
@@ -27,11 +25,10 @@ public:
   TextCursor(TextCursor && other);
   ~TextCursor();
 
-  TextCursor(TextDocument *document);
-  TextCursor(const TextBlock & block);
+  TextCursor(TextDocument* document);
+  TextCursor(const TextBlock& block);
 
   bool isNull() const;
-  bool isCopyOf(const TextCursor & other) const;
 
   TextDocument * document() const;
 
@@ -83,13 +80,23 @@ public:
   void swap(TextCursor & other);
   void detach();
 
-  TextCursor & operator=(const TextCursor & other);
-  TextCursor & operator=(TextCursor && other);
+  TextCursor & operator=(const TextCursor& other);
+  TextCursor & operator=(TextCursor&& other);
   bool operator<(const TextCursor & other) const;
 
+protected:
+  bool move_up(int n);
+  bool move_down(int n);
+  bool move_left(int n);
+  bool move_right(int n);
+
 private:
-  TextCursorImpl *mImpl;
-  TextDocument *mDocument;
+  friend class TextDocument;
+  friend class TextDocumentImpl;
+  TextDocument *m_document;
+  TextBlock m_block;
+  Position m_pos;
+  Position m_anchor;
 };
 
 } // namespace typewriter
