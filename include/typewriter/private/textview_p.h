@@ -41,6 +41,8 @@ public:
 public:
   TextViewImpl(TextDocument *doc);
 
+  TextView::WrapMode computedWrapMode() const;
+
   void refreshLongestLineLength();
 
   //inline view::BlockInfo & blockInfo(int n) const { return *blocks.at(n); }
@@ -64,9 +66,11 @@ private:
     LineFeedIterator,
   };
 
-  struct Iterator
+  class Iterator
   {
+  public:
     TextViewImpl* view = nullptr;
+    TextView::WrapMode wrapmode = TextView::WrapMode::NoWrap;
     std::vector<SimpleTextFold>::const_iterator folds;
     std::vector<view::Insert>::const_iterator inserts;
     int insert_row = 0;
@@ -76,15 +80,20 @@ private:
     IteratorKind current = BlockIterator;
 
     void init(TextViewImpl* v);
-    void update();
 
     void advance();
+
+    bool isSpace() const;
+    bool isTab() const;
 
     bool atEnd() const;
     int currentWidth() const;
 
     void seek(const view::LineInfo& l);
     void seek(const TextBlock& b);
+
+  protected:
+    void update();
   };
 
 private:
@@ -96,6 +105,8 @@ private:
 
   std::vector<view::SimpleLineElement> current_line;
   int current_line_width = 0;
+  int longest_line_width = 0;
+  bool has_invalidate_longest_line = false;
 
 public:
   explicit Composer(TextViewImpl* v);
@@ -114,12 +125,13 @@ public:
 
 protected:
   void relayoutBlock();
+  void checkLongestLine();
 
 protected:
   std::list<view::LineInfo>::iterator getLine(TextBlock b);
   void writeCurrentLine();
   void updateBlockLineIterator(TextBlock begin, TextBlock end);
-  view::SimpleLineElement createLineElement(const Iterator& it);
+  view::SimpleLineElement createLineElement(const Iterator& it, int w = -1);
   view::SimpleLineElement createCarriageReturn();
   view::SimpleLineElement createLineIndent();
 };

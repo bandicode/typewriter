@@ -18,6 +18,28 @@ namespace typewriter
 namespace view
 {
 
+std::string LineInfo::displayedText() const
+{
+  std::string r;
+
+  for (const auto& e : this->elements)
+  {
+    if (e.kind == SimpleLineElement::LE_BlockFragment)
+    {
+      TextBlockIterator it = e.block.begin();
+      it.seekColumn(e.begin);
+
+      for (int i(0); i < e.width; ++i)
+      {
+        r += unicode::Utf8Char(it.current()).data();
+        ++it;
+      }
+    }
+  }
+
+  return r;
+}
+
 BlockInfo::BlockInfo(const TextBlock& b)
   : block(b)
   , userstate(0)
@@ -129,6 +151,13 @@ TextViewImpl::TextViewImpl(TextDocument *doc)
   cmp.relayout();
 }
 
+TextView::WrapMode TextViewImpl::computedWrapMode() const
+{
+  if (this->cpl <= 0)
+    return TextView::WrapMode::NoWrap;
+  return this->wrapmode;
+}
+
 void TextViewImpl::refreshLongestLineLength()
 {
   this->longest_line_length = 0;
@@ -154,6 +183,7 @@ TextBlock TextViewImpl::getBlock(const view::LineInfo& l)
 void Composer::Iterator::init(TextViewImpl* v)
 {
   view = v;
+  wrapmode = v->computedWrapMode();
 
   folds = v->folds.begin();
   inline_inserts = v->inline_inserts.begin();
@@ -210,8 +240,37 @@ void Composer::Iterator::advance()
   }
   else if(current == BlockIterator)
   {
+    int block_column = -1;
     int fold_column = -1;
     int inline_insert_column = -1;
+
+    if (wrapmode == TextView::WrapMode::NoWrap)
+    {
+      block_column = textblock.block().length();
+    }
+    else if (wrapmode == TextView::WrapMode::Anywhere)
+    {
+      block_column = textblock.column() + 1;
+    }
+    else
+    {
+      if (isSpace() || isTab())
+      {
+        block_column = textblock.column() + 1;
+      }
+      else
+      {
+        block_column = textblock.column();
+        auto utf8_iter = textblock.unicodeIterator();
+        auto end_utf8_iter = unicode::utf8::end(textblock.block().text());
+
+        while (utf8_iter != end_utf8_iter && *utf8_iter != ' ')
+        {
+          ++utf8_iter;
+          ++block_column;
+        }
+      }
+    }
 
     if (folds != view->folds.end() && folds->cursor.selectionStart().line == line)
     {
@@ -223,20 +282,20 @@ void Composer::Iterator::advance()
       inline_insert_column = inline_inserts->cursor.position().column;
     }
 
-    if (fold_column != -1 && (fold_column < inline_insert_column || inline_insert_column == -1))
+    if (fold_column != -1 && (fold_column < inline_insert_column || inline_insert_column == -1) && fold_column < block_column)
     {
       textblock.seekColumn(fold_column);
       current = FoldIterator;
     }
-    else if (inline_insert_column != -1 && (inline_insert_column < fold_column || fold_column == -1))
+    else if (inline_insert_column != -1 && (inline_insert_column < fold_column || fold_column == -1) && inline_insert_column < block_column)
     {
       textblock.seekColumn(inline_insert_column);
       current = InlineInsertIterator;
     }
     else
     {
-      textblock.seekColumn(textblock.block().length());
-      current = LineFeedIterator;
+      textblock.seekColumn(block_column);
+      current = textblock.atEnd() ? LineFeedIterator : BlockIterator;
     }
   }
   else
@@ -249,6 +308,16 @@ void Composer::Iterator::advance()
   }
 
   update();
+}
+
+bool Composer::Iterator::isSpace() const
+{
+  return current == BlockIterator && textblock.current() == ' ';
+}
+
+bool Composer::Iterator::isTab() const
+{
+  return current == BlockIterator && textblock.current() == '\t';
 }
 
 bool Composer::Iterator::atEnd() const
@@ -331,6 +400,8 @@ void Composer::relayout()
   {
     relayoutBlock();
   }
+
+  checkLongestLine();
 }
 
 void Composer::relayoutBlock()
@@ -339,28 +410,50 @@ void Composer::relayoutBlock()
 
   int cpl = view->cpl <= 0 ? std::numeric_limits<int>::max() : view->cpl;
 
+  if (view->wrapmode == TextView::WrapMode::NoWrap)
+    cpl = std::numeric_limits<int>::max();
+
   while (iterator.current != LineFeedIterator)
   {
     if (iterator.current == InsertIterator)
     {
       current_line.push_back(createLineElement(iterator));
       writeCurrentLine();
-    }
-    else if (current_line_width + iterator.currentWidth() < cpl)
-    {
-      current_line.push_back(createLineElement(iterator));
-      current_line_width += iterator.currentWidth();
-    }
-    else
-    {
-      current_line.push_back(createCarriageReturn());
-      writeCurrentLine();
-      current_line.push_back(createLineIndent());
+      iterator.advance();
       continue;
     }
 
-    // TODO: if iterator is a fold, we should update the blockinfo->line to the current_line
-    iterator.advance();
+    int cur_width = iterator.currentWidth();
+
+    if (current_line_width + cur_width <= cpl)
+    {
+      current_line.push_back(createLineElement(iterator, cur_width));
+      current_line_width += cur_width;
+      iterator.advance();
+    }
+    else
+    {
+      if ((view->wrapmode == TextView::WrapMode::WordBoundaryOrAnywhere && iterator.current == Composer::BlockIterator) || cur_width > cpl)
+      {
+        int diff = cpl - current_line_width;
+        current_line.push_back(createLineElement(iterator, diff));
+        current_line_width += diff;
+        current_line.push_back(createCarriageReturn());
+        writeCurrentLine();
+        current_line.push_back(createLineIndent());
+
+        iterator.textblock.seekColumn(iterator.textblock.column() + diff);
+      }
+      else
+      {
+        current_line.push_back(createCarriageReturn());
+        writeCurrentLine();
+        current_line.push_back(createLineIndent());
+
+        if (iterator.isSpace())
+          iterator.advance();
+      }
+    }
   }
 
   writeCurrentLine();
@@ -383,6 +476,9 @@ void Composer::relayoutBlock()
 
     if (block != current_block)
     {
+      if (line_iterator->width() == view->longest_line_length)
+        has_invalidate_longest_line = true;
+
       line_iterator = view->lines.erase(line_iterator);
     }
     else
@@ -392,10 +488,30 @@ void Composer::relayoutBlock()
   }
 }
 
+void Composer::checkLongestLine()
+{
+  if (longest_line_width < view->longest_line_length && has_invalidate_longest_line)
+  {
+    view->refreshLongestLineLength();
+  }
+  else if (longest_line_width > view->longest_line_length)
+  {
+    view->longest_line_length = longest_line_width;
+  }
+}
+
 void Composer::writeCurrentLine()
 {
+  if (current_line_width > longest_line_width)
+  {
+    longest_line_width = current_line_width;
+  }
+
   if (line_iterator != view->lines.end() && TextViewImpl::getBlock(*line_iterator) == current_block)
   {
+    if (line_iterator->width() == view->longest_line_length)
+      has_invalidate_longest_line = true;
+
     std::swap(line_iterator->elements, current_line);
 
     if(line_iterator->elements.front().id != view::SimpleLineElement::LE_LineIndent)
@@ -468,6 +584,8 @@ void Composer::relayout(std::list<view::LineInfo>::iterator it)
   iterator.seek(*line_iterator);
 
   relayoutBlock();
+
+  checkLongestLine();
 }
 
 void Composer::handleBlockInsertion(const TextBlock& b)
@@ -497,6 +615,8 @@ void Composer::handleBlockInsertion(const TextBlock& b)
       relayoutBlock();
     }
   }
+
+  checkLongestLine();
 }
 
 void Composer::handleBlockRemoval(const TextBlock& b)
@@ -531,38 +651,42 @@ void Composer::handleFoldRemoval(const TextCursor& sel)
   {
     relayoutBlock();
   }
+
+  checkLongestLine();
 }
 
-view::SimpleLineElement Composer::createLineElement(const Iterator& it)
+view::SimpleLineElement Composer::createLineElement(const Iterator& it, int w)
 {
   view::SimpleLineElement e;
+
+  w = w == -1 ? it.currentWidth() : w;
 
   switch (it.current)
   {
   case FoldIterator:
   {
     e.kind = view::SimpleLineElement::LE_Fold;
-    e.width = it.currentWidth();
+    e.width = w;
     e.id = it.folds->id;
   }
   break;
   case InsertIterator:
   {
     e.kind = view::SimpleLineElement::LE_Insert;
-    e.width = it.currentWidth();
+    e.width = w;
     e.nbrow = it.insert_row;
   }
   break;
   case InlineInsertIterator:
   {
     e.kind = view::SimpleLineElement::LE_InlineInsert;
-    e.width = it.currentWidth();
+    e.width = w;
   }
   break;
   case BlockIterator:
   {
     e.kind = view::SimpleLineElement::LE_BlockFragment;
-    e.width = it.currentWidth();
+    e.width = w;
     e.block = it.textblock.block();
     e.begin = it.textblock.column();
   }

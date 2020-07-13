@@ -48,17 +48,24 @@ struct LineInfo
 {
   std::vector<SimpleLineElement> elements;
 
-  int width() const
+  static int width(const std::vector<SimpleLineElement>& elems)
   {
     int w = 0;
 
-    for (const auto& e : this->elements)
+    for (const auto& e : elems)
     {
       w += e.width;
     }
 
     return w;
   }
+
+  int width() const
+  {
+    return width(this->elements);
+  }
+
+  std::string displayedText() const;
 };
 
 } // namespace view

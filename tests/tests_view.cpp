@@ -9,6 +9,8 @@
 #include "typewriter/textcursor.h"
 #include "typewriter/textview.h"
 
+#include <iostream>
+
 using namespace typewriter;
 
 TEST_CASE("A view can be constructed from a document", "[view]")
@@ -82,4 +84,36 @@ TEST_CASE("Info can be inserted into a view with inserts", "[view]")
   view.clearInserts();
 
   REQUIRE(lines.front().elements.size() == 1); // text
+}
+
+TEST_CASE("TextView supports word-wrap", "[view]")
+{
+  TextDocument document{
+    "This is a simple document."
+  };
+
+  TextView view{ &document };
+
+  REQUIRE(view.height() == 1);
+
+  view.setWrapMode(TextView::WrapMode::Word);
+  view.setCharactersPerLine(7);
+
+  std::vector<view::LineInfo> lines{ view.lines().begin(), view.lines().end() };
+
+  REQUIRE(view.height() == 5);
+  REQUIRE(lines.at(0).displayedText() == "This is");
+  REQUIRE(lines.at(1).displayedText() == "a ");
+  REQUIRE(lines.at(2).displayedText() == "simple ");
+  REQUIRE(lines.at(3).displayedText() == "documen");
+  REQUIRE(lines.at(4).displayedText() == "t.");
+
+  view.setCharactersPerLine(10);
+
+  lines = std::vector<view::LineInfo>(view.lines().begin(), view.lines().end());
+
+  REQUIRE(view.height() == 3);
+  REQUIRE(lines.at(0).displayedText() == "This is a ");
+  REQUIRE(lines.at(1).displayedText() == "simple ");
+  REQUIRE(lines.at(2).displayedText() == "document.");
 }

@@ -114,6 +114,8 @@ public:
   unicode::Character current() const { return *m_iterator; }
   unicode::Character operator*() const { return *m_iterator; }
 
+  unicode::Utf8Iterator unicodeIterator() const { return m_iterator; }
+
   TextBlockIterator& operator++()
   {
     ++m_column;
