@@ -127,6 +127,18 @@ TEST_CASE("TextView supports word-wrap", "[view]")
   REQUIRE(lines.at(2).displayedText() == "document.");
 }
 
+TEST_CASE("TextView supports tabs", "[view]")
+{
+  TextDocument document{
+    "\ta\tab\tabc\tabcd\ta"
+  };
+
+  TextView view{ &document };
+  view.setTabSize(4);
+
+  REQUIRE(view.height() == 1);
+  REQUIRE(view.width() == 25);
+}
 
 TEST_CASE("TextView can handle catch.hpp", "[view-bench]")
 {

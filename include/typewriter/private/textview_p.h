@@ -32,7 +32,7 @@ public:
 
   int cpl = -1;
   TextView::WrapMode wrapmode = TextView::WrapMode::NoWrap;
-  std::string tabreplace;
+  int tabwidth = 4;
 
   std::vector<SimpleTextFold> folds;
   std::vector<view::Insert> inserts;
@@ -44,10 +44,6 @@ public:
   TextView::WrapMode computedWrapMode() const;
 
   void refreshLongestLineLength();
-
-  //inline view::BlockInfo & blockInfo(int n) const { return *blocks.at(n); }
-
-  inline int ncol(char c) const { return c =='\t' ? tabreplace.size() : 1; }
 
   static TextBlock getBlock(const view::LineInfo& l);
 };
@@ -134,6 +130,7 @@ protected:
   view::SimpleLineElement createLineElement(const Iterator& it, int w = -1);
   view::SimpleLineElement createCarriageReturn();
   view::SimpleLineElement createLineIndent();
+  void appendToCurrentLine(const Iterator& it, int w = -1);
 };
 
 } // namespace typewriter

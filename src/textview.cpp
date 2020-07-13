@@ -95,9 +95,7 @@ TextBlock Fragment::block() const
 
 std::string Fragment::text() const
 {
-  std::string ret = mLine->block.text().substr(position(), length());
-  str_utils::replace_all(ret, '\t', mView->tabreplace);
-  return ret;
+  return mLine->block.text().substr(position(), length());
 }
 
 Fragment Fragment::next() const
@@ -125,8 +123,6 @@ bool Fragment::operator!=(const Fragment& other) const
 TextViewImpl::TextViewImpl(TextDocument *doc)
   : document(doc)
 {
-  tabreplace = "    ";
-
   auto it = doc->firstBlock();
 
   std::shared_ptr<view::BlockInfo> prev = nullptr;
@@ -244,11 +240,7 @@ void Composer::Iterator::advance()
     int fold_column = -1;
     int inline_insert_column = -1;
 
-    if (wrapmode == TextView::WrapMode::NoWrap)
-    {
-      block_column = textblock.block().length();
-    }
-    else if (wrapmode == TextView::WrapMode::Anywhere)
+    if (wrapmode == TextView::WrapMode::Anywhere)
     {
       block_column = textblock.column() + 1;
     }
@@ -260,11 +252,16 @@ void Composer::Iterator::advance()
       }
       else
       {
+        // @TODO: optimization opportunity
+        // If wrapmode == TextView::WrapMode::NoWrap and there are no tabs in the block, 
+        // we could directly set:
+        // block_column = textblock.block().length();
+
         block_column = textblock.column();
         auto utf8_iter = textblock.unicodeIterator();
         auto end_utf8_iter = unicode::utf8::end(textblock.block().text());
 
-        while (utf8_iter != end_utf8_iter && *utf8_iter != ' ')
+        while (utf8_iter != end_utf8_iter && *utf8_iter != ' ' && *utf8_iter != '\t')
         {
           ++utf8_iter;
           ++block_column;
@@ -418,7 +415,7 @@ void Composer::relayoutBlock()
   {
     if (iterator.current == InsertIterator)
     {
-      current_line.push_back(createLineElement(iterator));
+      appendToCurrentLine(iterator);
       writeCurrentLine();
       iterator.advance();
       continue;
@@ -428,8 +425,7 @@ void Composer::relayoutBlock()
 
     if (current_line_width + cur_width <= cpl)
     {
-      current_line.push_back(createLineElement(iterator, cur_width));
-      current_line_width += cur_width;
+      appendToCurrentLine(iterator, cur_width);
       iterator.advance();
     }
     else
@@ -437,8 +433,7 @@ void Composer::relayoutBlock()
       if ((view->wrapmode == TextView::WrapMode::WordBoundaryOrAnywhere && iterator.current == Composer::BlockIterator) || cur_width > cpl)
       {
         int diff = cpl - current_line_width;
-        current_line.push_back(createLineElement(iterator, diff));
-        current_line_width += diff;
+        appendToCurrentLine(iterator, diff);
         current_line.push_back(createCarriageReturn());
         writeCurrentLine();
         current_line.push_back(createLineIndent());
@@ -687,9 +682,18 @@ view::SimpleLineElement Composer::createLineElement(const Iterator& it, int w)
   case BlockIterator:
   {
     e.kind = view::SimpleLineElement::LE_BlockFragment;
-    e.width = w;
     e.block = it.textblock.block();
     e.begin = it.textblock.column();
+
+    if (w == 1 && it.isTab())
+    {
+      e.kind = view::SimpleLineElement::LE_Tab;
+      e.width = view->tabwidth - (current_line_width % view->tabwidth);
+    }
+    else
+    {
+      e.width = w;
+    }
   }
   break;
   }
@@ -711,6 +715,30 @@ view::SimpleLineElement Composer::createLineIndent()
   e.kind = view::SimpleLineElement::LE_LineIndent;
   e.width = 0;
   return e;
+}
+
+void Composer::appendToCurrentLine(const Iterator& it, int w)
+{
+  view::SimpleLineElement elem = createLineElement(iterator, w);
+
+  if (!current_line.empty() && current_line.back().kind == view::SimpleLineElement::LE_BlockFragment && elem.kind == view::SimpleLineElement::LE_BlockFragment)
+  {
+    if (current_line.back().begin + current_line.back().width == elem.begin)
+    {
+      current_line.back().width += elem.width;
+      current_line_width += elem.width;
+    }
+    else
+    {
+      current_line.push_back(elem);
+      current_line_width += elem.width;
+    }
+  }
+  else
+  {
+    current_line.push_back(elem);
+    current_line_width += elem.width;
+  }
 }
 
 TextView::TextView(TextDocument *document)
@@ -744,19 +772,13 @@ TextDocument* TextView::document() const
 
 void TextView::setTabSize(int n)
 {
-  if (tabSize() == n)
-    return;
-
-  d->tabreplace.clear();
-
-  while (n > 0)
+  if (tabSize() != n)
   {
-    d->tabreplace.push_back(' ');
-    --n;
-  }
+    d->tabwidth = n;
 
-  Composer cmp{ d.get() };
-  cmp.relayout(); // TODO: avoid cleaning everything
+    Composer cmp{ d.get() };
+    cmp.relayout(); // TODO: avoid cleaning everything
+  }
 }
 
 int TextView::charactersPerLine() const
@@ -777,7 +799,7 @@ void TextView::setCharactersPerLine(int n)
 
 int TextView::tabSize() const
 {
-  return d->tabreplace.size();
+  return d->tabwidth;
 }
 
 int TextView::height() const
@@ -969,12 +991,6 @@ void TextView::contentsChange(const TextBlock& block, const Position& pos, int c
 {
   Composer cmp{ d.get() };
   cmp.relayout(block);
-}
-
-std::string TextView::replaceTabs(std::string text) const
-{
-  str_utils::replace_all(text, '\t', d->tabreplace);
-  return text;
 }
 
 } // namespace typewriter

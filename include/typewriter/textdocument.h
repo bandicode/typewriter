@@ -21,13 +21,6 @@ class TextDocumentImpl;
 
 class TextDocument;
 
-namespace str_utils
-{
-
-void replace_all(std::string& str, char c, const std::string& repl);
-
-} // namespace str_utils
-
 class TYPEWRITER_API TextDocumentListener
 {
 private:

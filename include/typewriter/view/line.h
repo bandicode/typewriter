@@ -34,6 +34,7 @@ struct SimpleLineElement
     LE_InlineInsert,
     LE_CarriageReturn,
     LE_LineIndent,
+    LE_Tab,
   };
 
   Kind kind = LE_BlockFragment;

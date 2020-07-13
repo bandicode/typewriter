@@ -331,25 +331,6 @@ void TextDocumentImpl::remove_block(int blocknum, TextBlock block)
   }
 }
 
-namespace str_utils
-{
-
-void replace_all(std::string& str, char c, const std::string& repl)
-{
-  size_t off = 0;
-  size_t pos = str.find(c, off);
-
-  while (pos != std::string::npos)
-  {
-    str.replace(pos, 1, repl);
-    off = pos + repl.size();
-    pos = str.find(c, off);
-  }
-}
-
-} // namespace str_utils
-
-
 TextDocumentListener::TextDocumentListener()
 {
 

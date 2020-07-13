@@ -76,9 +76,6 @@ protected:
 protected:
   explicit TextView(std::unique_ptr<TextViewImpl> && impl);
 
-protected:
-  std::string replaceTabs(std::string text) const;
-
 private: 
   void init();
 
