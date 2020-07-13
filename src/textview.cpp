@@ -102,7 +102,6 @@ bool Fragment::operator!=(const Fragment& other) const
 
 TextViewImpl::TextViewImpl(TextDocument *doc)
   : document(doc)
-  , linecount(1)
 {
   tabreplace = "    ";
 
@@ -159,7 +158,7 @@ void Composer::Iterator::init(TextViewImpl* v)
   folds = v->folds.begin();
   inline_inserts = v->inline_inserts.begin();
   inserts = v->inserts.begin();
-  textblock.block = v->document->firstBlock();
+  textblock = v->document->firstBlock().begin();
 
   update();
 }
@@ -169,11 +168,11 @@ void Composer::Iterator::update()
 {
   if (current == BlockIterator)
   {
-    if (folds != view->folds.end() && folds->cursor.selectionStart() == Position{ textblock.line, textblock.col})
+    if (folds != view->folds.end() && folds->cursor.selectionStart() == Position{ line, textblock.column() })
       current = FoldIterator;
-    else if (inserts != view->inserts.end() && inserts->cursor.block() == textblock.block)
+    else if (inserts != view->inserts.end() && inserts->cursor.block() == textblock.block())
       current = InsertIterator;
-    else if (inline_inserts != view->inline_inserts.end() && inline_inserts->cursor.block() == textblock.block && inline_inserts->cursor.position().column == textblock.col)
+    else if (inline_inserts != view->inline_inserts.end() && inline_inserts->cursor.block() == textblock.block() && inline_inserts->cursor.position().column == textblock.column())
       current = InlineInsertIterator;
   }
 }
@@ -186,9 +185,9 @@ void Composer::Iterator::advance()
     ++folds;
 
     assert(fold.cursor.position() == fold.cursor.selectionEnd());
-    textblock.block = fold.cursor.block();
-    textblock.line = fold.cursor.selectionEnd().line;
-    textblock.col = fold.cursor.selectionEnd().column;
+    textblock = fold.cursor.block().begin();
+    line = fold.cursor.selectionEnd().line;
+    textblock.seekColumn(fold.cursor.selectionEnd().column);
 
     current = BlockIterator;
   }
@@ -206,7 +205,7 @@ void Composer::Iterator::advance()
   {
     const auto& inins = *inline_inserts;
     ++inline_inserts;
-    textblock.col = inins.cursor.position().column;
+    textblock.seekColumn(inins.cursor.position().column);
     current = BlockIterator;
   }
   else if(current == BlockIterator)
@@ -214,29 +213,29 @@ void Composer::Iterator::advance()
     int fold_column = -1;
     int inline_insert_column = -1;
 
-    if (folds != view->folds.end() && folds->cursor.selectionStart().line == textblock.line)
+    if (folds != view->folds.end() && folds->cursor.selectionStart().line == line)
     {
       fold_column = folds->cursor.selectionStart().column;
     }
 
-    if (inline_inserts != view->inline_inserts.end() && inline_inserts->cursor.block() == textblock.block)
+    if (inline_inserts != view->inline_inserts.end() && inline_inserts->cursor.block() == textblock.block())
     {
       inline_insert_column = inline_inserts->cursor.position().column;
     }
 
     if (fold_column != -1 && (fold_column < inline_insert_column || inline_insert_column == -1))
     {
-      textblock.col = fold_column;
+      textblock.seekColumn(fold_column);
       current = FoldIterator;
     }
     else if (inline_insert_column != -1 && (inline_insert_column < fold_column || fold_column == -1))
     {
-      textblock.col = inline_insert_column;
+      textblock.seekColumn(inline_insert_column);
       current = InlineInsertIterator;
     }
     else
     {
-      textblock.col = textblock.block.length();
+      textblock.seekColumn(textblock.block().length());
       current = LineFeedIterator;
     }
   }
@@ -244,9 +243,8 @@ void Composer::Iterator::advance()
   {
     assert(current == LineFeedIterator);
 
-    textblock.block = textblock.block.next();
-    textblock.line += 1;
-    textblock.col = 0;
+    textblock =  textblock.block().next().begin();
+    line += 1;
     current = BlockIterator;
   }
 
@@ -255,7 +253,7 @@ void Composer::Iterator::advance()
 
 bool Composer::Iterator::atEnd() const
 {
-  return current == BlockIterator && !textblock.block.isValid();
+  return current == BlockIterator && !textblock.block().isValid();
 }
 
 int Composer::Iterator::currentWidth() const
@@ -279,10 +277,10 @@ int Composer::Iterator::currentWidth() const
     Iterator copy{ *this };
     copy.advance();
 
-    if (copy.textblock.line == textblock.line)
-      return copy.textblock.col - textblock.col;
+    if (copy.line == line)
+      return copy.textblock.column() - textblock.column();
     else
-      return textblock.block.length() - textblock.col;
+      return textblock.block().length() - textblock.column();
   }
 }
 
@@ -293,23 +291,24 @@ void Composer::Iterator::seek(const view::LineInfo& l)
 
 void Composer::Iterator::seek(const TextBlock& b)
 {
-  textblock.block = b;
-  textblock.line = textblock.block.blockNumber();
-  textblock.col = 0;
+  textblock = b.begin();
+  line = b.blockNumber();
 
-  folds = std::lower_bound(view->folds.begin(), view->folds.end(), textblock, [](const SimpleTextFold& lhs, const TextBlockIterator& rhs) -> bool {
+  Position pos{ line, textblock.column() };
+
+  folds = std::lower_bound(view->folds.begin(), view->folds.end(), pos, [](const SimpleTextFold& lhs, const Position& rhs) -> bool {
     return lhs.cursor.selectionStart().line < rhs.line
-      || (lhs.cursor.selectionStart().line == rhs.line && lhs.cursor.selectionStart().column < rhs.col);
+      || (lhs.cursor.selectionStart().line == rhs.line && lhs.cursor.selectionStart().column < rhs.column);
     });
 
-  inserts = std::lower_bound(view->inserts.begin(), view->inserts.end(), textblock, [](const view::Insert& lhs, const TextBlockIterator& rhs) -> bool {
+  inserts = std::lower_bound(view->inserts.begin(), view->inserts.end(), pos, [](const view::Insert& lhs, const Position& rhs) -> bool {
     return lhs.cursor.selectionStart().line < rhs.line
-      || (lhs.cursor.selectionStart().line == rhs.line && lhs.cursor.selectionStart().column < rhs.col);
+      || (lhs.cursor.selectionStart().line == rhs.line && lhs.cursor.selectionStart().column < rhs.column);
     });
 
-  inline_inserts = std::lower_bound(view->inline_inserts.begin(), view->inline_inserts.end(), textblock, [](const view::InlineInsert& lhs, const TextBlockIterator& rhs) -> bool {
+  inline_inserts = std::lower_bound(view->inline_inserts.begin(), view->inline_inserts.end(), pos, [](const view::InlineInsert& lhs, const Position& rhs) -> bool {
     return lhs.cursor.selectionStart().line < rhs.line
-      || (lhs.cursor.selectionStart().line == rhs.line && lhs.cursor.selectionStart().column < rhs.col);
+      || (lhs.cursor.selectionStart().line == rhs.line && lhs.cursor.selectionStart().column < rhs.column);
     });
 }
 
@@ -372,8 +371,8 @@ void Composer::relayoutBlock()
     line_iterator = view->lines.erase(line_iterator);
   }
 
-  updateBlockLineIterator(current_block, iterator.textblock.block);
-  current_block = iterator.textblock.block;
+  updateBlockLineIterator(current_block, iterator.textblock.block());
+  current_block = iterator.textblock.block();
 
   // A fold may have hidden some lines that need to be destroyed,
   // it may also (if deleted) have restored some lines
@@ -564,8 +563,8 @@ view::SimpleLineElement Composer::createLineElement(const Iterator& it)
   {
     e.kind = view::SimpleLineElement::LE_BlockFragment;
     e.width = it.currentWidth();
-    e.block = it.textblock.block;
-    e.begin = it.textblock.col;
+    e.block = it.textblock.block();
+    e.begin = it.textblock.column();
   }
   break;
   }
@@ -645,7 +644,9 @@ void TextView::setCharactersPerLine(int n)
   if (d->cpl != n)
   {
     d->cpl = n;
-    updateLayout();
+    
+    Composer cmp{ d.get() };
+    cmp.relayout(); // TODO: avoid cleaning everything
   }
 }
 
@@ -667,6 +668,22 @@ int TextView::width() const
 const std::list<view::LineInfo>& TextView::lines() const
 {
   return d->lines;
+}
+
+TextView::WrapMode TextView::wrapMode() const
+{
+  return d->wrapmode;
+}
+
+void TextView::setWrapMode(WrapMode wm)
+{
+  if (wm != d->wrapmode)
+  {
+    d->wrapmode = wm;
+
+    Composer cmp{ d.get() };
+    cmp.relayout(); // TODO: avoid cleaning everything
+  }
 }
 
 void TextView::addFold(int id, TextCursor sel, int w)
@@ -833,11 +850,6 @@ std::string TextView::replaceTabs(std::string text) const
 {
   str_utils::replace_all(text, '\t', d->tabreplace);
   return text;
-}
-
-void TextView::updateLayout()
-{
-  
 }
 
 } // namespace typewriter

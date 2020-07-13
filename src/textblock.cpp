@@ -220,6 +220,16 @@ TextBlock TextBlock::previous() const
   return TextBlock{ document(), mImpl->previous.get() };
 }
 
+TextBlockIterator TextBlock::begin() const
+{
+  return TextBlockIterator(*this);
+}
+
+TextBlockIterator TextBlock::end() const
+{
+  return TextBlockIterator(*this, true);
+}
+
 int TextBlock::revision() const
 {
   return mImpl->revision;

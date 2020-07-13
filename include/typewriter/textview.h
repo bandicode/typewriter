@@ -79,9 +79,6 @@ protected:
 protected:
   std::string replaceTabs(std::string text) const;
 
-protected:
-  void updateLayout();
-
 private: 
   void init();
 

@@ -29,9 +29,9 @@ public:
   std::unordered_map<TextBlockImpl*, std::shared_ptr<view::BlockInfo>> blocks;
   std::list<view::LineInfo> lines;
   int longest_line_length = 0;
-  int linecount;
 
   int cpl = -1;
+  TextView::WrapMode wrapmode = TextView::WrapMode::NoWrap;
   std::string tabreplace;
 
   std::vector<SimpleTextFold> folds;
@@ -55,13 +55,6 @@ class Composer
 private:
   TextViewImpl* view;
 
-  struct TextBlockIterator
-  {
-    TextBlock block;
-    int line = 0;
-    int col = 0;
-  };
-
   enum IteratorKind
   {
     FoldIterator,
@@ -79,6 +72,7 @@ private:
     int insert_row = 0;
     std::vector<view::InlineInsert>::const_iterator inline_inserts;
     TextBlockIterator textblock;
+    int line = 0;
     IteratorKind current = BlockIterator;
 
     void init(TextViewImpl* v);

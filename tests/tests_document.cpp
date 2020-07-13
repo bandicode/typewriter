@@ -22,6 +22,31 @@ TEST_CASE("A document can be constructed from a string", "[document]")
   REQUIRE(document.toString() == "This is a simple document.\nIt spans over 2 lines.");
 }
 
+TEST_CASE("TextBlock can be used to iterate over the document", "[document]")
+{
+  TextDocument document{
+  "ABC"
+  };
+
+  auto it = document.firstBlock().begin();
+  auto end = document.firstBlock().end();
+
+  REQUIRE(it.current() == 'A');
+
+  ++it;
+
+  REQUIRE(it.current() == 'B');
+
+  ++it;
+
+  REQUIRE(it.current() == 'C');
+
+  ++it;
+
+  REQUIRE(it == end);
+}
+
+
 TEST_CASE("Cursors can be used to edit a document", "[document]")
 {
   TextDocument document;
