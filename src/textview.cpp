@@ -409,8 +409,6 @@ void Composer::relayout()
 
 void Composer::relayoutBlock()
 {
-  // TODO: wrap words
-
   int cpl = view->cpl <= 0 ? std::numeric_limits<int>::max() : view->cpl;
 
   if (view->wrapmode == TextView::WrapMode::NoWrap)

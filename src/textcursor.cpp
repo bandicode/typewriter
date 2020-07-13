@@ -426,7 +426,7 @@ void TextCursor::insertText(const std::string& text)
   std::vector<std::string> lines = split_str(text, '\n');
   for (auto & l : lines)
   {
-    if (l.back() == '\r')
+    if (!l.empty() && l.back() == '\r')
       l.pop_back();
   }
 

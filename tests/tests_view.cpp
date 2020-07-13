@@ -9,6 +9,8 @@
 #include "typewriter/textcursor.h"
 #include "typewriter/textview.h"
 
+#include <chrono>
+#include <fstream>
 #include <iostream>
 
 using namespace typewriter;
@@ -123,4 +125,44 @@ TEST_CASE("TextView supports word-wrap", "[view]")
   REQUIRE(lines.at(0).displayedText() == "This is a ");
   REQUIRE(lines.at(1).displayedText() == "simple ");
   REQUIRE(lines.at(2).displayedText() == "document.");
+}
+
+
+TEST_CASE("TextView can handle catch.hpp", "[view-bench]")
+{
+  std::string content;
+  
+  {
+    std::ifstream file{ "catch.hpp" };
+    std::string line;
+
+    while (!file.eof())
+    {
+      std::getline(file, line);
+      content += line;
+      content.push_back('\n');
+    }
+
+    content.pop_back();
+  }
+
+  auto start = std::chrono::high_resolution_clock::now();
+
+  TextDocument document{ content };
+
+  auto end = std::chrono::high_resolution_clock::now();
+
+  std::cout << "TextDocument constructor on catch.hpp " << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << std::endl;
+
+  REQUIRE(document.lineCount() == 17619);
+
+  start = std::chrono::high_resolution_clock::now();
+
+  TextView view{ &document };
+
+  end = std::chrono::high_resolution_clock::now();
+
+  std::cout << "TextView constructor on catch.hpp " << std::chrono::duration_cast<std::chrono::microseconds>(end - start).count() << std::endl;
+
+  REQUIRE(view.height() == document.lineCount());
 }
