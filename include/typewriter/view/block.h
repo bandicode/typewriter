@@ -24,20 +24,20 @@ namespace view
 
 class Fragment;
 
-struct BlockInfo
+struct Block
 {
   TextBlock block;
   std::vector<FormatRange> formats;
   int userstate;
   int revision;
-  std::weak_ptr<BlockInfo> prev;
-  std::weak_ptr<BlockInfo> next;
-  std::list<view::LineInfo>::iterator line;
+  std::weak_ptr<Block> prev;
+  std::weak_ptr<Block> next;
+  std::list<view::Line>::iterator line;
 
 public:
-  BlockInfo(const TextBlock & b);
-  BlockInfo(const BlockInfo &) = delete;
-  ~BlockInfo();
+  Block(const TextBlock & b);
+  Block(const Block &) = delete;
+  ~Block();
 };
 
 } // namespace view

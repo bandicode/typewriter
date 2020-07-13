@@ -11,7 +11,7 @@
 #include "typewriter/utils/range.h"
 
 #include <list>
-#include <map>
+#include <unordered_map>
 
 namespace typewriter
 {
@@ -42,7 +42,8 @@ public:
   int height() const;
   int width() const;
 
-  const std::list<view::LineInfo>& lines() const;
+  const std::list<view::Line>& lines() const;
+  const std::unordered_map<TextBlockImpl*, std::shared_ptr<view::Block>>& blocks() const;
 
   enum class WrapMode
   {

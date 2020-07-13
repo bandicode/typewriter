@@ -19,7 +19,7 @@ class TextViewImpl;
 namespace view
 {
 
-struct BlockInfo;
+struct Block;
 
 class TYPEWRITER_API Fragment
 {
@@ -28,7 +28,7 @@ public:
   Fragment(const Fragment & other) = default;
   ~Fragment();
 
-  Fragment(BlockInfo const *line, int col, std::vector<FormatRange>::const_iterator iter, std::vector<FormatRange>::const_iterator sentinel, TextViewImpl const *view);
+  Fragment(Block const *line, int col, std::vector<FormatRange>::const_iterator iter, std::vector<FormatRange>::const_iterator sentinel, TextViewImpl const *view);
   
   inline bool isNull() const { return mView == nullptr; }
 
@@ -50,7 +50,7 @@ protected:
   friend class TextViewImpl;
 
 private:
-  BlockInfo const *mLine;
+  Block const *mLine;
   int mColumn;
   std::vector<FormatRange>::const_iterator mIterator;
   std::vector<FormatRange>::const_iterator mSentinel;

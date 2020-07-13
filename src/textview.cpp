@@ -18,13 +18,13 @@ namespace typewriter
 namespace view
 {
 
-std::string LineInfo::displayedText() const
+std::string Line::displayedText() const
 {
   std::string r;
 
   for (const auto& e : this->elements)
   {
-    if (e.kind == SimpleLineElement::LE_BlockFragment)
+    if (e.kind == LineElement::LE_BlockFragment)
     {
       TextBlockIterator it = e.block.begin();
       it.seekColumn(e.begin);
@@ -40,7 +40,7 @@ std::string LineInfo::displayedText() const
   return r;
 }
 
-BlockInfo::BlockInfo(const TextBlock& b)
+Block::Block(const TextBlock& b)
   : block(b)
   , userstate(0)
   , revision(-1)
@@ -48,7 +48,7 @@ BlockInfo::BlockInfo(const TextBlock& b)
 
 }
 
-BlockInfo::~BlockInfo()
+Block::~Block()
 {
 
 }
@@ -63,7 +63,7 @@ Fragment::~Fragment()
 
 }
 
-Fragment::Fragment(BlockInfo const* line, int col, std::vector<FormatRange>::const_iterator iter, std::vector<FormatRange>::const_iterator sentinel, TextViewImpl const* view)
+Fragment::Fragment(Block const* line, int col, std::vector<FormatRange>::const_iterator iter, std::vector<FormatRange>::const_iterator sentinel, TextViewImpl const* view)
   : mLine(line)
   , mColumn(col)
   , mIterator(iter)
@@ -125,11 +125,11 @@ TextViewImpl::TextViewImpl(TextDocument *doc)
 {
   auto it = doc->firstBlock();
 
-  std::shared_ptr<view::BlockInfo> prev = nullptr;
+  std::shared_ptr<view::Block> prev = nullptr;
 
   do
   {
-    auto block_info = std::make_shared<view::BlockInfo>(it);
+    auto block_info = std::make_shared<view::Block>(it);
     this->blocks[it.impl()] = block_info;
 
     if (prev)
@@ -164,7 +164,7 @@ void TextViewImpl::refreshLongestLineLength()
   }
 }
 
-TextBlock TextViewImpl::getBlock(const view::LineInfo& l)
+TextBlock TextViewImpl::getBlock(const view::Line& l)
 {
   for (const auto& e : l.elements)
   {
@@ -350,7 +350,7 @@ int Composer::Iterator::currentWidth() const
   }
 }
 
-void Composer::Iterator::seek(const view::LineInfo& l)
+void Composer::Iterator::seek(const view::Line& l)
 {
   seek(TextViewImpl::getBlock(l));
 }
@@ -362,7 +362,7 @@ void Composer::Iterator::seek(const TextBlock& b)
 
   Position pos{ line, textblock.column() };
 
-  folds = std::lower_bound(view->folds.begin(), view->folds.end(), pos, [](const SimpleTextFold& lhs, const Position& rhs) -> bool {
+  folds = std::lower_bound(view->folds.begin(), view->folds.end(), pos, [](const TextFold& lhs, const Position& rhs) -> bool {
     return lhs.cursor.selectionStart().line < rhs.line
       || (lhs.cursor.selectionStart().line == rhs.line && lhs.cursor.selectionStart().column < rhs.column);
     });
@@ -510,7 +510,7 @@ void Composer::writeCurrentLine()
 
     std::swap(line_iterator->elements, current_line);
 
-    if(line_iterator->elements.front().id != view::SimpleLineElement::LE_LineIndent)
+    if(line_iterator->elements.front().id != view::LineElement::LE_LineIndent)
       view->blocks[current_block.impl()]->line = line_iterator;
 
     ++line_iterator;
@@ -519,9 +519,9 @@ void Composer::writeCurrentLine()
   {
     assert(line_iterator == view->lines.end() || TextViewImpl::getBlock(*line_iterator) != current_block);
 
-    line_iterator = view->lines.insert(line_iterator, view::LineInfo{ std::move(current_line) });
+    line_iterator = view->lines.insert(line_iterator, view::Line{ std::move(current_line) });
 
-    if (line_iterator->elements.front().id != view::SimpleLineElement::LE_LineIndent)
+    if (line_iterator->elements.front().id != view::LineElement::LE_LineIndent)
       view->blocks[current_block.impl()]->line = line_iterator;
 
     ++line_iterator;
@@ -535,10 +535,10 @@ void Composer::updateBlockLineIterator(TextBlock begin, TextBlock end)
 {
   auto lit = std::prev(line_iterator);
 
-  while (lit->elements.front().id == view::SimpleLineElement::LE_LineIndent)
+  while (lit->elements.front().id == view::LineElement::LE_LineIndent)
     --lit;
 
-  std::shared_ptr<view::BlockInfo> info = view->blocks[begin.impl()];
+  std::shared_ptr<view::Block> info = view->blocks[begin.impl()];
 
   while (info && info->block != end)
   {
@@ -557,14 +557,14 @@ void Composer::relayout(TextBlock b)
   relayout(it);
 }
 
-std::list<view::LineInfo>::iterator Composer::getLine(TextBlock b)
+std::list<view::Line>::iterator Composer::getLine(TextBlock b)
 {
   auto it = view->blocks.find(b.impl());
 
   if (it == view->blocks.end())
     return {};
 
-  std::shared_ptr<view::BlockInfo> info = it->second;
+  std::shared_ptr<view::Block> info = it->second;
 
   if (info == nullptr)
     return {};
@@ -572,7 +572,7 @@ std::list<view::LineInfo>::iterator Composer::getLine(TextBlock b)
   return info->line;
 }
 
-void Composer::relayout(std::list<view::LineInfo>::iterator it)
+void Composer::relayout(std::list<view::Line>::iterator it)
 {
   line_iterator = it;
   current_block = TextViewImpl::getBlock(*line_iterator);
@@ -627,7 +627,7 @@ void Composer::handleBlockRemoval(const TextBlock& b)
   relayout(b.previous());
 }
 
-void Composer::handleFoldInsertion(std::vector<SimpleTextFold>::iterator it)
+void Composer::handleFoldInsertion(std::vector<TextFold>::iterator it)
 {
   TextBlock start_block = prev(it->cursor.block(), it->cursor.position().line - it->cursor.anchor().line);
   relayout(start_block);
@@ -651,9 +651,9 @@ void Composer::handleFoldRemoval(const TextCursor& sel)
   checkLongestLine();
 }
 
-view::SimpleLineElement Composer::createLineElement(const Iterator& it, int w)
+view::LineElement Composer::createLineElement(const Iterator& it, int w)
 {
-  view::SimpleLineElement e;
+  view::LineElement e;
 
   w = w == -1 ? it.currentWidth() : w;
 
@@ -661,33 +661,33 @@ view::SimpleLineElement Composer::createLineElement(const Iterator& it, int w)
   {
   case FoldIterator:
   {
-    e.kind = view::SimpleLineElement::LE_Fold;
+    e.kind = view::LineElement::LE_Fold;
     e.width = w;
     e.id = it.folds->id;
   }
   break;
   case InsertIterator:
   {
-    e.kind = view::SimpleLineElement::LE_Insert;
+    e.kind = view::LineElement::LE_Insert;
     e.width = w;
     e.nbrow = it.insert_row;
   }
   break;
   case InlineInsertIterator:
   {
-    e.kind = view::SimpleLineElement::LE_InlineInsert;
+    e.kind = view::LineElement::LE_InlineInsert;
     e.width = w;
   }
   break;
   case BlockIterator:
   {
-    e.kind = view::SimpleLineElement::LE_BlockFragment;
+    e.kind = view::LineElement::LE_BlockFragment;
     e.block = it.textblock.block();
     e.begin = it.textblock.column();
 
     if (w == 1 && it.isTab())
     {
-      e.kind = view::SimpleLineElement::LE_Tab;
+      e.kind = view::LineElement::LE_Tab;
       e.width = view->tabwidth - (current_line_width % view->tabwidth);
     }
     else
@@ -701,27 +701,27 @@ view::SimpleLineElement Composer::createLineElement(const Iterator& it, int w)
   return e;
 }
 
-view::SimpleLineElement Composer::createCarriageReturn()
+view::LineElement Composer::createCarriageReturn()
 {
-  view::SimpleLineElement e;
-  e.kind = view::SimpleLineElement::LE_CarriageReturn;
+  view::LineElement e;
+  e.kind = view::LineElement::LE_CarriageReturn;
   e.width = 0;
   return e;
 }
 
-view::SimpleLineElement Composer::createLineIndent()
+view::LineElement Composer::createLineIndent()
 {
-  view::SimpleLineElement e;
-  e.kind = view::SimpleLineElement::LE_LineIndent;
+  view::LineElement e;
+  e.kind = view::LineElement::LE_LineIndent;
   e.width = 0;
   return e;
 }
 
 void Composer::appendToCurrentLine(const Iterator& it, int w)
 {
-  view::SimpleLineElement elem = createLineElement(iterator, w);
+  view::LineElement elem = createLineElement(iterator, w);
 
-  if (!current_line.empty() && current_line.back().kind == view::SimpleLineElement::LE_BlockFragment && elem.kind == view::SimpleLineElement::LE_BlockFragment)
+  if (!current_line.empty() && current_line.back().kind == view::LineElement::LE_BlockFragment && elem.kind == view::LineElement::LE_BlockFragment)
   {
     if (current_line.back().begin + current_line.back().width == elem.begin)
     {
@@ -812,9 +812,14 @@ int TextView::width() const
   return d->longest_line_length;
 }
 
-const std::list<view::LineInfo>& TextView::lines() const
+const std::list<view::Line>& TextView::lines() const
 {
   return d->lines;
+}
+
+const std::unordered_map<TextBlockImpl*, std::shared_ptr<view::Block>>& TextView::blocks() const
+{
+  return d->blocks;
 }
 
 TextView::WrapMode TextView::wrapMode() const
@@ -844,11 +849,11 @@ void TextView::addFold(int id, TextCursor sel, int w)
 
   assert(sel.anchor() < sel.position());
 
-  auto it = std::lower_bound(d->folds.begin(), d->folds.end(), sel.anchor(), [](const SimpleTextFold& lhs, const Position& rhs) -> bool {
+  auto it = std::lower_bound(d->folds.begin(), d->folds.end(), sel.anchor(), [](const TextFold& lhs, const Position& rhs) -> bool {
     return lhs.cursor.anchor() < rhs;
     });
 
-  SimpleTextFold stf;
+  TextFold stf;
   stf.cursor = sel;
   stf.id = id;
   stf.width = w;
@@ -861,14 +866,14 @@ void TextView::addFold(int id, TextCursor sel, int w)
 
 void TextView::removeFold(int id)
 {
-  auto it = std::find_if(d->folds.begin(), d->folds.end(), [id](const SimpleTextFold& f) -> bool {
+  auto it = std::find_if(d->folds.begin(), d->folds.end(), [id](const TextFold& f) -> bool {
     return f.id == id;
     });
 
   if (it == d->folds.end())
     return;
 
-  SimpleTextFold fold = *it;
+  TextFold fold = *it;
 
   d->folds.erase(it);
 
@@ -880,7 +885,7 @@ void TextView::clearFolds()
 {
   while (!d->folds.empty())
   {
-    SimpleTextFold f = d->folds.back();
+    TextFold f = d->folds.back();
     d->folds.pop_back();
 
     Composer composer{ d.get() };
@@ -952,7 +957,7 @@ void TextView::blockDestroyed(int line, const TextBlock & block)
 
   auto it = d->blocks.find(block.impl());
 
-  std::shared_ptr<view::BlockInfo> info = it->second;
+  std::shared_ptr<view::Block> info = it->second;
 
   auto prev_info = info->prev.lock();
   auto next_info = info->next.lock();
@@ -970,7 +975,7 @@ void TextView::blockInserted(const Position & pos, const TextBlock & block)
   Composer cmp{ d.get() };
   cmp.handleBlockInsertion(block);
 
-  auto info = std::make_shared<view::BlockInfo>(block);
+  auto info = std::make_shared<view::Block>(block);
   d->blocks[block.impl()] = info;
 
   auto prev_info = d->blocks[block.previous().impl()];

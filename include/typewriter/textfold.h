@@ -10,7 +10,7 @@
 namespace typewriter
 {
 
-struct TYPEWRITER_API SimpleTextFold
+struct TYPEWRITER_API TextFold
 {
   TextCursor cursor;
   int width;

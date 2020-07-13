@@ -86,7 +86,7 @@ TEST_CASE("Info can be inserted into a view with inserts", "[view]")
 
   const auto& lines = view.lines();
   REQUIRE(lines.front().elements.size() == 3); // text + insert + text
-  REQUIRE(lines.front().elements.at(1).kind == view::SimpleLineElement::LE_InlineInsert); // text + insert + text
+  REQUIRE(lines.front().elements.at(1).kind == view::LineElement::LE_InlineInsert); // text + insert + text
 
   view.clearInserts();
 
@@ -106,7 +106,7 @@ TEST_CASE("TextView supports word-wrap", "[view]")
   view.setWrapMode(TextView::WrapMode::Word);
   view.setCharactersPerLine(7);
 
-  std::vector<view::LineInfo> lines{ view.lines().begin(), view.lines().end() };
+  std::vector<view::Line> lines{ view.lines().begin(), view.lines().end() };
 
   REQUIRE(view.height() == 5);
   REQUIRE(view.width() == 7);
@@ -118,7 +118,7 @@ TEST_CASE("TextView supports word-wrap", "[view]")
 
   view.setCharactersPerLine(10);
 
-  lines = std::vector<view::LineInfo>(view.lines().begin(), view.lines().end());
+  lines = std::vector<view::Line>(view.lines().begin(), view.lines().end());
 
   REQUIRE(view.height() == 3);
   REQUIRE(view.width() == 10);

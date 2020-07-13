@@ -24,7 +24,7 @@ namespace view
 class Block;
 class Fragment;
 
-struct SimpleLineElement
+struct LineElement
 {
   enum Kind
   {
@@ -45,11 +45,13 @@ struct SimpleLineElement
   int nbrow = 0;
 };
 
-struct LineInfo
+class Line
 {
-  std::vector<SimpleLineElement> elements;
+public:
 
-  static int width(const std::vector<SimpleLineElement>& elems)
+  std::vector<LineElement> elements;
+
+  static int width(const std::vector<LineElement>& elems)
   {
     int w = 0;
 

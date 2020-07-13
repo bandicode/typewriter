@@ -26,15 +26,15 @@ class TextViewImpl
 public:
   TextDocument *document;
   
-  std::unordered_map<TextBlockImpl*, std::shared_ptr<view::BlockInfo>> blocks;
-  std::list<view::LineInfo> lines;
+  std::unordered_map<TextBlockImpl*, std::shared_ptr<view::Block>> blocks;
+  std::list<view::Line> lines;
   int longest_line_length = 0;
 
   int cpl = -1;
   TextView::WrapMode wrapmode = TextView::WrapMode::NoWrap;
   int tabwidth = 4;
 
-  std::vector<SimpleTextFold> folds;
+  std::vector<TextFold> folds;
   std::vector<view::Insert> inserts;
   std::vector<view::InlineInsert> inline_inserts;
 
@@ -45,7 +45,7 @@ public:
 
   void refreshLongestLineLength();
 
-  static TextBlock getBlock(const view::LineInfo& l);
+  static TextBlock getBlock(const view::Line& l);
 };
 
 class Composer
@@ -67,7 +67,7 @@ private:
   public:
     TextViewImpl* view = nullptr;
     TextView::WrapMode wrapmode = TextView::WrapMode::NoWrap;
-    std::vector<SimpleTextFold>::const_iterator folds;
+    std::vector<TextFold>::const_iterator folds;
     std::vector<view::Insert>::const_iterator inserts;
     int insert_row = 0;
     std::vector<view::InlineInsert>::const_iterator inline_inserts;
@@ -85,7 +85,7 @@ private:
     bool atEnd() const;
     int currentWidth() const;
 
-    void seek(const view::LineInfo& l);
+    void seek(const view::Line& l);
     void seek(const TextBlock& b);
 
   protected:
@@ -97,9 +97,9 @@ private:
   Iterator iterator;
 
   TextBlock current_block;
-  std::list<view::LineInfo>::iterator line_iterator;
+  std::list<view::Line>::iterator line_iterator;
 
-  std::vector<view::SimpleLineElement> current_line;
+  std::vector<view::LineElement> current_line;
   int current_line_width = 0;
   int longest_line_width = 0;
   bool has_invalidate_longest_line = false;
@@ -111,12 +111,12 @@ public:
 
   void relayout(TextBlock b);
 
-  void relayout(std::list<view::LineInfo>::iterator it);
+  void relayout(std::list<view::Line>::iterator it);
 
   void handleBlockInsertion(const TextBlock& b);
   void handleBlockRemoval(const TextBlock& b);
 
-  void handleFoldInsertion(std::vector<SimpleTextFold>::iterator it);
+  void handleFoldInsertion(std::vector<TextFold>::iterator it);
   void handleFoldRemoval(const TextCursor& sel);
 
 protected:
@@ -124,12 +124,12 @@ protected:
   void checkLongestLine();
 
 protected:
-  std::list<view::LineInfo>::iterator getLine(TextBlock b);
+  std::list<view::Line>::iterator getLine(TextBlock b);
   void writeCurrentLine();
   void updateBlockLineIterator(TextBlock begin, TextBlock end);
-  view::SimpleLineElement createLineElement(const Iterator& it, int w = -1);
-  view::SimpleLineElement createCarriageReturn();
-  view::SimpleLineElement createLineIndent();
+  view::LineElement createLineElement(const Iterator& it, int w = -1);
+  view::LineElement createCarriageReturn();
+  view::LineElement createLineIndent();
   void appendToCurrentLine(const Iterator& it, int w = -1);
 };
 
