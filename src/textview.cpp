@@ -390,7 +390,10 @@ Composer::Composer(TextViewImpl* v)
 void Composer::relayout()
 {
   view->lines.clear();
+  has_invalidate_longest_line = true;
 
+  longest_line_width = 0;
+  current_line.clear();
   current_block = view->document->firstBlock();
   line_iterator = view->lines.end();
 

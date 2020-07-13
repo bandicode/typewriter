@@ -36,6 +36,9 @@ TEST_CASE("Part of a view can be hidden with folds", "[view]")
 
   TextView view{ &document };
 
+  REQUIRE(view.height() == 2);
+  REQUIRE(view.width() == 26);
+
   TextCursor cursor{ &document };
   cursor.setPosition(Position{ 0, 5 });
   cursor.setPosition(Position{ 1, 6 }, TextCursor::KeepAnchor);
@@ -43,11 +46,13 @@ TEST_CASE("Part of a view can be hidden with folds", "[view]")
   view.addFold(1, cursor);
 
   REQUIRE(view.height() == 1);
+  REQUIRE(view.width() == 24); // 5 + 16 + 3(fold)
 
   cursor.setPosition(Position{ 1, 7 });
   cursor.insertChar('*');
 
   REQUIRE(view.height() == 1);
+  REQUIRE(view.width() == 25);
 
   const auto& lines = view.lines();
   REQUIRE(lines.front().elements.size() == 3); // text + fold + text
@@ -102,6 +107,7 @@ TEST_CASE("TextView supports word-wrap", "[view]")
   std::vector<view::LineInfo> lines{ view.lines().begin(), view.lines().end() };
 
   REQUIRE(view.height() == 5);
+  REQUIRE(view.width() == 7);
   REQUIRE(lines.at(0).displayedText() == "This is");
   REQUIRE(lines.at(1).displayedText() == "a ");
   REQUIRE(lines.at(2).displayedText() == "simple ");
@@ -113,6 +119,7 @@ TEST_CASE("TextView supports word-wrap", "[view]")
   lines = std::vector<view::LineInfo>(view.lines().begin(), view.lines().end());
 
   REQUIRE(view.height() == 3);
+  REQUIRE(view.width() == 10);
   REQUIRE(lines.at(0).displayedText() == "This is a ");
   REQUIRE(lines.at(1).displayedText() == "simple ");
   REQUIRE(lines.at(2).displayedText() == "document.");
