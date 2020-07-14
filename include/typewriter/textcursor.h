@@ -78,7 +78,6 @@ public:
   void insertChar(const unicode::Character c);
 
   void swap(TextCursor & other);
-  void detach();
 
   TextCursor & operator=(const TextCursor& other);
   TextCursor & operator=(TextCursor&& other);

@@ -85,6 +85,8 @@ public:
 
   inline const std::vector<Diff> & diffs() const { return mDiffs; }
   inline std::vector<Diff> & diffs() { return mDiffs; }
+
+  void clear() { mDiffs.clear(); }
   
   Diff takeFirst();
 

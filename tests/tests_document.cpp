@@ -46,7 +46,6 @@ TEST_CASE("TextBlock can be used to iterate over the document", "[document]")
   REQUIRE(it == end);
 }
 
-
 TEST_CASE("Cursors can be used to edit a document", "[document]")
 {
   TextDocument document;
@@ -72,3 +71,63 @@ TEST_CASE("Cursors can be used to edit a document", "[document]")
 
   REQUIRE(document.toString() == "Hello World!\nGo");
 }
+
+TEST_CASE("Undo redo text insertion", "[cursors]")
+{
+  TextDocument document{
+    "Hello !"
+  };
+
+  TextCursor cursor{ &document };
+
+  cursor.setPosition(Position{ 0, 6 });
+
+  cursor.insertText("World");
+
+  REQUIRE(document.text(0) == "Hello World!");
+
+  cursor.undo();
+
+  REQUIRE(document.text(0) == "Hello !");
+
+  cursor.redo();
+
+  REQUIRE(document.text(0) == "Hello World!");
+
+  cursor.setPosition(Position{ 0, 0 });
+
+  cursor.beginEdit();
+  cursor.insertText("Statement");
+  cursor.insertText(": ");
+  cursor.endEdit();
+
+  REQUIRE(document.text(0) == "Statement: Hello World!");
+
+  cursor.undo();
+
+  REQUIRE(document.text(0) == "Hello World!");
+
+  cursor.redo();
+
+  REQUIRE(document.text(0) == "Statement: Hello World!");
+}
+
+TEST_CASE("Undo redo block insertion", "[cursors]")
+{
+  TextDocument document{
+    "Hello !"
+  };
+
+  TextCursor cursor{ &document };
+
+  cursor.setPosition(Position{ 0, 7 });
+
+  cursor.insertBlock();
+
+  REQUIRE(document.toString() == "Hello !\n");
+
+  cursor.undo();
+
+  REQUIRE(document.toString() == "Hello !");
+}
+

@@ -14,6 +14,31 @@
 namespace typewriter
 {
 
+struct CursorTransaction
+{
+  TextCursor* cursor;
+  bool has_opened_transaction = false;
+
+  CursorTransaction(TextCursor* c)
+    : cursor(c)
+  {
+    auto* d = c->document()->impl();
+
+    if (!d->transaction.is_active() && !d->cursors_are_ghosts)
+    {
+      has_opened_transaction = true;
+      c->beginEdit();
+    }
+  }
+
+  ~CursorTransaction()
+  {
+    if (has_opened_transaction)
+      cursor->endEdit();
+  }
+};
+
+
 TextCursor::TextCursor()
   : m_document(nullptr)
 {
@@ -107,8 +132,6 @@ const Position & TextCursor::anchor() const
 
 void TextCursor::setPosition(const Position & pos, MoveMode mode)
 {
-  detach();
-
   if (pos.line >= document()->lineCount() || (pos.line == document()->lineCount() - 1 && pos.column >= document()->lastBlock().length()))
   {
     m_pos.line = document()->lineCount() - 1;
@@ -314,40 +337,33 @@ std::string TextCursor::selectedText() const
 
 void TextCursor::clearSelection()
 {
-  detach();
   m_anchor = m_pos;
 }
 
 void TextCursor::removeSelectedText()
 {
-  detach();
+  CursorTransaction tr{ this };
   document()->impl()->removeSelection(position(), block(), anchor());
 }
 
-
 void TextCursor::beginEdit()
 {
-  /// TODO
-  throw std::runtime_error{ "Not Implemented" };
+  document()->impl()->beginTransaction(this);
 }
 
 void TextCursor::endEdit()
 {
-  /// TODO
-  throw std::runtime_error{ "Not Implemented" };
+  document()->impl()->endTransaction(this);
 }
-
 
 void TextCursor::undo()
 {
-  /// TODO
-  throw std::runtime_error{ "Not Implemented" };
+  document()->impl()->undo(this);
 }
 
 void TextCursor::redo()
 {
-  /// TODO
-  throw std::runtime_error{ "Not Implemented" };
+  document()->impl()->redo(this);
 }
 
 
@@ -359,8 +375,7 @@ void TextCursor::deleteChar()
     return;
   }
 
-  detach();
-
+  CursorTransaction tr{ this };
   m_document->impl()->deleteChar(position(), block());
 }
 
@@ -372,18 +387,16 @@ void TextCursor::deletePreviousChar()
     return;
   }
 
-  detach();
-
+  CursorTransaction tr{ this };
   m_document->impl()->deletePreviousChar(position(), block());
 }
 
 void TextCursor::insertBlock()
 {
-  detach();
-  
   if (hasSelection())
     removeSelectedText();
 
+  CursorTransaction tr{ this };
   m_document->impl()->insertBlock(position(), block());
 }
 
@@ -408,7 +421,7 @@ static std::vector<std::string> split_str(const std::string& text, char c)
 
 void TextCursor::insertText(const std::string& text)
 {
-  detach();
+  CursorTransaction tr{ this };
 
   if (hasSelection())
     removeSelectedText();
@@ -431,8 +444,6 @@ void TextCursor::insertText(const std::string& text)
 
 void TextCursor::insertChar(unicode::Character c)
 {
-  detach();
-
   if (hasSelection())
     removeSelectedText();
 
@@ -454,11 +465,6 @@ void TextCursor::swap(TextCursor& other)
     std::swap(m_pos, other.m_pos);
     std::swap(m_anchor, other.m_anchor);
   }
-}
-
-void TextCursor::detach()
-{
-
 }
 
 TextCursor & TextCursor::operator=(const TextCursor& other)

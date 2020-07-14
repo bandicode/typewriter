@@ -115,6 +115,9 @@ void TextDocumentImpl::insertBlock(Position pos, const TextBlock & block)
   block.impl()->content.erase(block.impl()->content.begin() + pos.column, block.impl()->content.end());
   block.impl()->revision += 1;
 
+  if (this->transaction.is_active())
+    this->transaction.delta << diff::insert(pos, "\n");
+
   // Update cursors
   for (size_t i(0); i < this->cursors.size(); ++i)
   {
@@ -157,6 +160,9 @@ void TextDocumentImpl::insertChar(Position pos, const TextBlock & block, unicode
   block.impl()->content.insert(pos.column, u8c.data());
   block.impl()->revision += 1;
 
+  if (this->transaction.is_active())
+    this->transaction.delta << diff::insert(pos, u8c.data());
+
   for (size_t i(0); i < this->cursors.size(); ++i)
   {
     auto *c = this->cursors[i];
@@ -176,6 +182,9 @@ void TextDocumentImpl::insertText(Position pos, const TextBlock & block, const s
   // TODO: not correct, we need to take into account the 1 character != 1 char
   block.impl()->content.insert(pos.column, str);
   block.impl()->revision += 1;
+
+  if (this->transaction.is_active())
+    this->transaction.delta << diff::insert(pos, str);
 
   for (size_t i(0); i < this->cursors.size(); ++i)
   {
@@ -259,8 +268,84 @@ void TextDocumentImpl::removeSelection(const Position begin, const TextBlock & b
   }
 }
 
+void TextDocumentImpl::beginTransaction(Author author)
+{
+  if (transaction.is_active() && transaction.author != author)
+    throw std::runtime_error{ "A transaction is already active" };
+
+  transaction.author = author;
+  transaction.depth += 1;
+}
+
+void TextDocumentImpl::endTransaction(Author author)
+{
+  if (!transaction.is_active())
+    throw std::runtime_error{ "No active transaction" };
+
+  if (transaction.author != author)
+    throw std::runtime_error{ "Do not own active transaction" };
+
+  transaction.depth -= 1;
+
+  if (transaction.depth != 0)
+    return;
+
+  m_redo_stack.clear();
+
+  Contribution contrib;
+  contrib.author = author;
+  contrib.delta = std::move(transaction.delta);
+
+  transaction.delta.clear();
+
+  m_undo_stack.push_back(std::move(contrib));
+  m_redo_stack.clear();
+}
+
+void TextDocumentImpl::undo(Author author)
+{
+  if (m_undo_stack.empty())
+    throw std::runtime_error{ "Undo stack is empty" };
+
+  if (m_undo_stack.back().author == author)
+  {
+    revert(m_undo_stack.back().delta);
+    m_redo_stack.push_back(std::move(m_undo_stack.back()));
+    m_undo_stack.pop_back();
+  }
+  else
+  {
+    // @TODO: try to solve undo
+    throw std::runtime_error{ "Do not own last undo action" };
+  }
+}
+
+void TextDocumentImpl::redo(Author author)
+{
+  if (m_redo_stack.empty())
+    throw std::runtime_error{ "Redo stack is empty" };
+
+  if (m_redo_stack.back().author == author)
+  {
+    apply(m_redo_stack.back().delta);
+    m_undo_stack.push_back(std::move(m_redo_stack.back()));
+    m_redo_stack.pop_back();
+  }
+  else
+  {
+    // @TODO: try to solve undo
+    throw std::runtime_error{ "Do not own last redo action" };
+  }
+}
+
 void TextDocumentImpl::remove_selection_singleline(const Position begin, const TextBlock & beginBlock, int count)
 {
+  if (this->transaction.is_active())
+  {
+    std::string removed = beginBlock.impl()->content.substr(begin.column, count);
+    this->transaction.delta << diff::remove(begin, std::move(removed));
+  }
+
   beginBlock.impl()->content.erase(begin.column, count);
 
   // update cursors
@@ -308,6 +393,9 @@ void TextDocumentImpl::remove_block(int blocknum, TextBlock block)
   TextBlock prev = block.previous();
   prev.impl()->content.append(block.text());
 
+  if (this->transaction.is_active())
+    this->transaction.delta << diff::remove(Position{ blocknum, prev.length() }, "\n");
+
   if (this->lastBlock == block.impl())
   {
     this->lastBlock = prev.impl();
@@ -337,6 +425,56 @@ void TextDocumentImpl::remove_block(int blocknum, TextBlock block)
   {
     l->blockDestroyed(blocknum, block);
   }
+}
+
+void TextDocumentImpl::apply(const TextDiff& diff, bool inv)
+{
+  const std::vector<TextDiff::Diff>& diffs = diff.diffs();
+
+  if (diffs.size() == 0)
+    return;
+
+  // @TODO: use RAII
+  this->cursors_are_ghosts = true;
+
+  TextCursor c{ this->document };
+  std::vector<TextCursor> cursors;
+  cursors.reserve(diffs.size());
+
+  // Create edit cursors
+  for (const auto& d : diff.diffs())
+  {
+    c.setPosition(d.begin());
+
+    if(d.kind == TextDiff::Removal || (d.kind == TextDiff::Insertion && inv))
+      c.setPosition(d.end(), TextCursor::KeepAnchor);
+
+    cursors.push_back(c);
+  }
+
+  // Apply diff
+  for (int i(0); i < diffs.size(); ++i)
+  {
+    const auto& d = diff.diffs().at(i);
+
+    TextDiff::Kind kind = d.kind;
+
+    if (inv)
+      kind = (kind == TextDiff::Removal ? TextDiff::Insertion : TextDiff::Removal);
+
+    if (kind == TextDiff::Removal)
+      cursors[i].removeSelectedText();
+    else
+      cursors[i].insertText(d.text());
+  }
+
+  // @TODO: use RAII
+  this->cursors_are_ghosts = false;
+}
+
+void TextDocumentImpl::revert(const TextDiff& diff)
+{
+  apply(diff, true);
 }
 
 TextDocumentListener::TextDocumentListener()
@@ -389,7 +527,9 @@ TextDocument::TextDocument()
 TextDocument::TextDocument(const std::string& text)
   : d(new TextDocumentImpl(this))
 {
+  d->cursors_are_ghosts = true;
   TextCursor{ this }.insertText(text);
+  d->cursors_are_ghosts = false;
 }
 
 TextDocument::~TextDocument()
@@ -454,38 +594,6 @@ TextBlock TextDocument::findBlockByNumber(int num) const
   if (it == nullptr)
     return TextBlock{};
   return TextBlock{ this, it };
-}
-
-void TextDocument::apply(const TextDiff & diff)
-{
-  const std::vector<TextDiff::Diff> & diffs = diff.diffs();
-
-  if (diffs.size() == 0)
-    return;
-
-  TextCursor c{ this };
-  std::vector<TextCursor> cursors;
-  cursors.reserve(diffs.size());
-
-  /// TODO: add to undo stack
-
-  // Create edit cursors
-  for (const auto & d : diff.diffs())
-  {
-    c.setPosition(d.begin());
-    c.setPosition(d.end(), TextCursor::KeepAnchor);
-    cursors.push_back(c);
-  }
-
-  // Apply diff
-  for (int i(0); i < diffs.size(); ++i)
-  {
-    const auto & d = diff.diffs().at(i);
-    if (d.kind == TextDiff::Removal)
-      cursors[i].removeSelectedText();
-    else
-      cursors[i].insertText(d.text());
-  }
 }
 
 int TextDocument::availableUndoSteps() const

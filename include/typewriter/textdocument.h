@@ -62,7 +62,6 @@ public:
   TextBlock findBlockByNumber(int num) const;
 
   /// TODO: validate this candidate interface 
-  void apply(const TextDiff & diff);
   int availableUndoSteps() const;
   inline bool isUndoAvailable() const { return availableUndoSteps() > 0; }
   int availableRedoSteps() const;
