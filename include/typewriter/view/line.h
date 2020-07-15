@@ -68,6 +68,23 @@ public:
     return width(this->elements);
   }
 
+  TextBlock block() const
+  {
+    for (const auto& e : this->elements)
+    {
+      if (e.block.isValid())
+        return e.block;
+    }
+
+    assert(false);
+    return TextBlock();
+  }
+
+  bool isInsert() const
+  {
+    return this->elements.front().kind == LineElement::LE_Insert;
+  }
+
   std::string displayedText() const;
 };
 

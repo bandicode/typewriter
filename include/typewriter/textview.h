@@ -28,10 +28,12 @@ class TextViewImpl;
 class TYPEWRITER_API TextView : public TextDocumentListener
 {
 public:
-  TextView(TextDocument *document);
+  explicit TextView(TextDocument *document = nullptr);
   ~TextView();
 
   TextDocument* document() const;
+
+  void reset(TextDocument* doc);
 
   int tabSize() const;
   void setTabSize(int n);
@@ -73,9 +75,6 @@ protected:
   void blockDestroyed(int line, const TextBlock & block) override;
   void blockInserted(const Position & pos, const TextBlock & block) override;
   void contentsChange(const TextBlock & block, const Position & pos, int charsRemoved, int charsAdded) override;
-
-protected:
-  explicit TextView(std::unique_ptr<TextViewImpl> && impl);
 
 private: 
   void init();

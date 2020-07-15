@@ -123,6 +123,22 @@ bool Fragment::operator!=(const Fragment& other) const
 TextViewImpl::TextViewImpl(TextDocument *doc)
   : document(doc)
 {
+  reset(doc);
+}
+
+void TextViewImpl::reset(TextDocument* doc)
+{
+  this->blocks.clear();
+  this->lines.clear();
+  this->inline_inserts.clear();
+  this->inserts.clear();
+  this->folds.clear();
+
+  this->document = doc;
+
+  if (!doc)
+    return;
+
   auto it = doc->firstBlock();
 
   std::shared_ptr<view::Block> prev = nullptr;
@@ -162,18 +178,6 @@ void TextViewImpl::refreshLongestLineLength()
   {
     this->longest_line_length = std::max({ this->longest_line_length, l.width() });
   }
-}
-
-TextBlock TextViewImpl::getBlock(const view::Line& l)
-{
-  for (const auto& e : l.elements)
-  {
-    if (e.block.isValid())
-      return e.block;
-  }
-
-  assert(false);
-  return TextBlock();
 }
 
 void Composer::Iterator::init(TextViewImpl* v)
@@ -352,7 +356,7 @@ int Composer::Iterator::currentWidth() const
 
 void Composer::Iterator::seek(const view::Line& l)
 {
-  seek(TextViewImpl::getBlock(l));
+  seek(l.block());
 }
 
 void Composer::Iterator::seek(const TextBlock& b)
@@ -455,7 +459,7 @@ void Composer::relayoutBlock()
   writeCurrentLine();
   iterator.advance();
 
-  while (line_iterator != view->lines.end() && TextViewImpl::getBlock(*line_iterator) == current_block)
+  while (line_iterator != view->lines.end() && line_iterator->block() == current_block)
   {
     line_iterator = view->lines.erase(line_iterator);
   }
@@ -468,7 +472,7 @@ void Composer::relayoutBlock()
   // TODO: we need to have more information, i.e. know if a fold was added or removed
   while (line_iterator != view->lines.end())
   {
-    TextBlock block = TextViewImpl::getBlock(*line_iterator);
+    TextBlock block = line_iterator->block();
 
     if (block != current_block)
     {
@@ -503,7 +507,7 @@ void Composer::writeCurrentLine()
     longest_line_width = current_line_width;
   }
 
-  if (line_iterator != view->lines.end() && TextViewImpl::getBlock(*line_iterator) == current_block)
+  if (line_iterator != view->lines.end() && line_iterator->block() == current_block)
   {
     if (line_iterator->width() == view->longest_line_length)
       has_invalidate_longest_line = true;
@@ -517,7 +521,7 @@ void Composer::writeCurrentLine()
   }
   else
   {
-    assert(line_iterator == view->lines.end() || TextViewImpl::getBlock(*line_iterator) != current_block);
+    assert(line_iterator == view->lines.end() || line_iterator->block() != current_block);
 
     line_iterator = view->lines.insert(line_iterator, view::Line{ std::move(current_line) });
 
@@ -575,7 +579,7 @@ std::list<view::Line>::iterator Composer::getLine(TextBlock b)
 void Composer::relayout(std::list<view::Line>::iterator it)
 {
   line_iterator = it;
-  current_block = TextViewImpl::getBlock(*line_iterator);
+  current_block = line_iterator->block();
 
   iterator.seek(*line_iterator);
 
@@ -589,7 +593,7 @@ void Composer::handleBlockInsertion(const TextBlock& b)
   auto it = getLine(b.previous());
   auto next = it;
 
-  while (next != view->lines.end() && TextViewImpl::getBlock(*next) == b.previous())
+  while (next != view->lines.end() && next->block() == b.previous())
   {
     ++next;
   }
@@ -602,7 +606,7 @@ void Composer::handleBlockInsertion(const TextBlock& b)
   }
   else
   {
-    if (TextViewImpl::getBlock(*next) == b.next())
+    if (next->block() == b.next())
     {
       // 'b' is not inside a fold
 
@@ -619,7 +623,7 @@ void Composer::handleBlockRemoval(const TextBlock& b)
 {
   auto it = getLine(b);
 
-  while (it != view->lines.end() && TextViewImpl::getBlock(*it) == b)
+  while (it != view->lines.end() && it->block() == b)
   {
     it = view->lines.erase(it);
   }
@@ -747,12 +751,6 @@ TextView::TextView(TextDocument *document)
   init();
 }
 
-TextView::TextView(std::unique_ptr<TextViewImpl> && impl)
-  : d(std::move(impl))
-{
-  init();
-}
-
 TextView::~TextView()
 {
   document()->removeListener(this);
@@ -760,14 +758,25 @@ TextView::~TextView()
 
 void TextView::init()
 {
-  document()->addListener(this);
-
-  d->refreshLongestLineLength();
+  if (document())
+  {
+    document()->addListener(this);
+    d->refreshLongestLineLength();
+  }
 }
 
 TextDocument* TextView::document() const
 {
   return d->document;
+}
+
+void TextView::reset(TextDocument* doc)
+{
+  if (document())
+    document()->removeListener(this);
+
+  d->reset(doc);
+  init();
 }
 
 void TextView::setTabSize(int n)

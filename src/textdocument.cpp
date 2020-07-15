@@ -484,7 +484,8 @@ TextDocumentListener::TextDocumentListener()
 
 TextDocumentListener::~TextDocumentListener()
 {
-
+  if (m_document)
+    m_document->removeListener(this);
 }
 
 TextDocument* TextDocumentListener::document() const

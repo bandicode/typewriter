@@ -41,11 +41,11 @@ public:
 public:
   TextViewImpl(TextDocument *doc);
 
+  void reset(TextDocument* doc);
+
   TextView::WrapMode computedWrapMode() const;
 
   void refreshLongestLineLength();
-
-  static TextBlock getBlock(const view::Line& l);
 };
 
 class Composer
