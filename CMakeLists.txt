@@ -41,15 +41,23 @@ endforeach()
 ###### Qt widget
 ##################################################################
 
-add_subdirectory(widget)
+set(TYPEWRITER_BUILD_QT_WIDGET OFF CACHE BOOL "whether to build the 'typewriter' Qt widget")
+
+if (TYPEWRITER_BUILD_QT_WIDGET)
+  add_subdirectory(widget)
+endif()
 
 ##################################################################
 ###### Tests, tools & examples
 ##################################################################
 
-add_subdirectory(tests)
+set(TYPEWRITER_BUILD_TESTS ON CACHE BOOL "whether to build the 'typewriter' tests")
 
-set(TEXTEDIT_BUILD_EXAMPLES FALSE CACHE BOOL "Check if you want to build the examples")
-if(TEXTEDIT_BUILD_EXAMPLES)
-add_subdirectory(examples)
+if (TYPEWRITER_BUILD_TESTS)
+  add_subdirectory(tests)
+endif()
+
+set(TYPEWRITER_BUILD_EXAMPLES FALSE CACHE BOOL "Check if you want to build the 'typewriter' examples")
+if(TYPEWRITER_BUILD_EXAMPLES)
+  add_subdirectory(examples)
 endif()
