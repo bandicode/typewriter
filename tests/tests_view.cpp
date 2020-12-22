@@ -140,6 +140,27 @@ TEST_CASE("TextView supports tabs", "[view]")
   REQUIRE(view.width() == 25);
 }
 
+TEST_CASE("TextView reacts correctly to edits", "[view]")
+{
+  TextDocument document{
+    "\nint a = 5;\n"
+    "int b = 6;\n"
+  };
+
+  TextView view{ &document };
+  
+  REQUIRE(view.height() == 4);
+  REQUIRE(view.width() == 10);
+
+  TextCursor cursor{ &document };
+  cursor.setPosition(Position{ 4, 0 }, TextCursor::KeepAnchor);
+  cursor.removeSelectedText();
+  cursor.insertText("\nvoid main()\n{\n\n}\n");
+
+  REQUIRE(view.height() == 6);
+  REQUIRE(view.width() == 11);
+}
+
 TEST_CASE("TextView can handle catch.hpp", "[view-bench]")
 {
   std::string content;

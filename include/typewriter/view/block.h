@@ -35,7 +35,7 @@ struct Block
   std::list<view::Line>::iterator line;
 
 public:
-  Block(const TextBlock & b);
+  Block(const TextBlock& b, std::list<view::Line>::iterator l);
   Block(const Block &) = delete;
   ~Block();
 };

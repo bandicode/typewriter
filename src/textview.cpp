@@ -40,10 +40,11 @@ std::string Line::displayedText() const
   return r;
 }
 
-Block::Block(const TextBlock& b)
+Block::Block(const TextBlock& b, std::list<view::Line>::iterator l)
   : block(b)
   , userstate(0)
   , revision(-1)
+  , line(l)
 {
 
 }
@@ -145,7 +146,7 @@ void TextViewImpl::reset(TextDocument* doc)
 
   do
   {
-    auto block_info = std::make_shared<view::Block>(it);
+    auto block_info = std::make_shared<view::Block>(it, this->lines.end());
     this->blocks[it.impl()] = block_info;
 
     if (prev)
@@ -390,6 +391,9 @@ Composer::Composer(TextViewImpl* v)
 
 void Composer::relayout()
 {
+  for (auto& entry : view->blocks)
+    entry.second->line = view->lines.end();
+
   view->lines.clear();
   has_invalidate_longest_line = true;
 
@@ -526,7 +530,11 @@ void Composer::writeCurrentLine()
     line_iterator = view->lines.insert(line_iterator, view::Line{ std::move(current_line) });
 
     if (line_iterator->elements.front().id != view::LineElement::LE_LineIndent)
-      view->blocks[current_block.impl()]->line = line_iterator;
+    {
+      auto& blockinfo = view->blocks[current_block.impl()];
+      assert(blockinfo != nullptr);
+      blockinfo->line = line_iterator;
+    }
 
     ++line_iterator;
   }
@@ -602,6 +610,7 @@ void Composer::handleBlockInsertion(const TextBlock& b)
   {
     current_block = b;
     line_iterator = view->lines.end();
+    iterator.seek(b);
     relayoutBlock();
   }
   else
@@ -612,6 +621,7 @@ void Composer::handleBlockInsertion(const TextBlock& b)
 
       current_block = b;
       line_iterator = next;
+      iterator.seek(b);
       relayoutBlock();
     }
   }
@@ -981,11 +991,11 @@ void TextView::blockDestroyed(int line, const TextBlock & block)
 
 void TextView::blockInserted(const Position & pos, const TextBlock & block)
 {
+  auto info = std::make_shared<view::Block>(block, d->lines.end());
+  d->blocks[block.impl()] = info;
+
   Composer cmp{ d.get() };
   cmp.handleBlockInsertion(block);
-
-  auto info = std::make_shared<view::Block>(block);
-  d->blocks[block.impl()] = info;
 
   auto prev_info = d->blocks[block.previous().impl()];
 

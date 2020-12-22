@@ -179,6 +179,10 @@ void TextDocumentImpl::insertChar(Position pos, const TextBlock & block, unicode
 
 void TextDocumentImpl::insertText(Position pos, const TextBlock & block, const std::string& str)
 {
+  // @TODO: try to make it a precondition
+  if (str.empty())
+    return;
+
   // TODO: not correct, we need to take into account the 1 character != 1 char
   block.impl()->content.insert(pos.column, str);
   block.impl()->revision += 1;
@@ -340,6 +344,10 @@ void TextDocumentImpl::redo(Author author)
 
 void TextDocumentImpl::remove_selection_singleline(const Position begin, const TextBlock & beginBlock, int count)
 {
+  // @TODO: try to make it a precondition
+  if (count == 0)
+    return;
+
   if (this->transaction.is_active())
   {
     std::string removed = beginBlock.impl()->content.substr(begin.column, count);
@@ -418,13 +426,17 @@ void TextDocumentImpl::remove_block(int blocknum, TextBlock block)
       c->m_block = prev;
   }
 
-  block.impl()->setGarbage();
+  // @TODO: it causes a crash if we call setGarbage() here
+  // block.impl()->setGarbage();
   this->lineCount -= 1;
 
   for (const auto& l : listeners)
   {
     l->blockDestroyed(blocknum, block);
   }
+
+  // @TODO: should we call setGarbage() earlier
+  block.impl()->setGarbage();
 }
 
 void TextDocumentImpl::apply(const TextDiff& diff, bool inv)
