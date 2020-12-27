@@ -86,7 +86,7 @@ int Fragment::position() const
 
 int Fragment::length() const
 {
-  return mIterator == mSentinel ? (mLine->block.length() - mColumn) : (mColumn < mIterator->start ? mIterator->start - mColumn : mIterator->length);
+  return mIterator == mSentinel ? (mLine->block.length() - mColumn) : static_cast<int>(mColumn < mIterator->start ? mIterator->start - mColumn : mIterator->length);
 }
 
 TextBlock Fragment::block() const
@@ -104,9 +104,9 @@ Fragment Fragment::next() const
   if (mIterator == mSentinel)
     return Fragment{ mLine, mLine->block.length(), mSentinel, mSentinel, mView };
   else if (mColumn < mIterator->start)
-    return Fragment(mLine, mIterator->start, mIterator, mSentinel, mView);
+    return Fragment(mLine, static_cast<int>(mIterator->start), mIterator, mSentinel, mView);
   else
-    return Fragment(mLine, mColumn + mIterator->length, std::next(mIterator), mSentinel, mView);
+    return Fragment(mLine, mColumn + static_cast<int>(mIterator->length), std::next(mIterator), mSentinel, mView);
 }
 
 bool Fragment::operator==(const Fragment& other) const
@@ -823,7 +823,7 @@ int TextView::tabSize() const
 
 int TextView::height() const
 {
-  return lines().size();
+  return static_cast<int>(lines().size());
 }
 
 int TextView::width() const

@@ -19,7 +19,7 @@ class TextViewImpl;
 namespace view
 {
 
-struct Block;
+class Block;
 
 class TYPEWRITER_API Fragment
 {
