@@ -21,15 +21,53 @@ namespace view
 
 class Block;
 
-class TYPEWRITER_API Fragment
+//class TYPEWRITER_API Fragment
+//{
+//public:
+//  Fragment();
+//  Fragment(const Fragment & other) = default;
+//  ~Fragment();
+//
+//  Fragment(Block const *line, int col, std::vector<FormatRange>::const_iterator iter, std::vector<FormatRange>::const_iterator sentinel, TextViewImpl const *view);
+//  
+//  inline bool isNull() const { return mView == nullptr; }
+//
+//  int format() const;
+//  int position() const;
+//  int length() const;
+//
+//  TextBlock block() const;
+//  std::string text() const;
+//
+//  Fragment next() const;
+//
+//  Fragment & operator=(const Fragment &) = default;
+//  bool operator==(const Fragment & other) const;
+//  bool operator!=(const Fragment & other) const;
+//
+//protected:
+//  friend class TextView;
+//  friend class TextViewImpl;
+//
+//private:
+//  Block const *mLine;
+//  int mColumn;
+//  std::vector<FormatRange>::const_iterator mIterator;
+//  std::vector<FormatRange>::const_iterator mSentinel;
+//  TextViewImpl const *mView;
+//};
+
+class TYPEWRITER_API StyledFragment
 {
 public:
-  Fragment();
-  Fragment(const Fragment & other) = default;
-  ~Fragment();
+  StyledFragment();
+  StyledFragment(const StyledFragment&) = default;
+  ~StyledFragment();
 
-  Fragment(Block const *line, int col, std::vector<FormatRange>::const_iterator iter, std::vector<FormatRange>::const_iterator sentinel, TextViewImpl const *view);
-  
+  StyledFragment(TextViewImpl const* view, Line const* line, LineElement elem);
+  StyledFragment(TextViewImpl const* view, Line const* line, const TextBlock& block, int begin, int end);
+  StyledFragment(TextViewImpl const* view, Line const* line, const TextBlock& block, int begin, int end, std::vector<FormatRange>::const_iterator iter);
+
   inline bool isNull() const { return mView == nullptr; }
 
   int format() const;
@@ -39,22 +77,47 @@ public:
   TextBlock block() const;
   std::string text() const;
 
-  Fragment next() const;
+  StyledFragment next() const;
 
-  Fragment & operator=(const Fragment &) = default;
-  bool operator==(const Fragment & other) const;
-  bool operator!=(const Fragment & other) const;
+  StyledFragment& operator=(const StyledFragment&) = default;
+  bool operator==(const StyledFragment& other) const;
+  bool operator!=(const StyledFragment& other) const;
 
 protected:
   friend class TextView;
   friend class TextViewImpl;
 
 private:
-  Block const *mLine;
-  int mColumn;
+  TextViewImpl const* mView = nullptr;
+  Line const* mLine = nullptr;
+  int mColumn = -1;
+  int mEnd = -1;
+  std::shared_ptr<view::Block> m_block;
   std::vector<FormatRange>::const_iterator mIterator;
-  std::vector<FormatRange>::const_iterator mSentinel;
-  TextViewImpl const *mView;
+};
+
+class TYPEWRITER_API StyledFragments
+{
+public:
+  StyledFragments() = delete;
+  StyledFragments(const StyledFragments&) = default;
+  ~StyledFragments() = default;
+
+  StyledFragments(TextViewImpl const* view, Line const* line, LineElement elem);
+
+  StyledFragment begin() const;
+  StyledFragment end() const;
+
+protected:
+  friend class TextView;
+  friend class TextViewImpl;
+
+private:
+  TextViewImpl const* m_view = nullptr;
+  Line const* m_line = nullptr;
+  TextBlock m_block;
+  int m_begin = -1;
+  int m_end = -1;
 };
 
 } // namespace view

@@ -103,6 +103,7 @@ public:
   typewriter::Contributor* contributor = nullptr;
   QTypewriterFontMetrics metrics;
   TextFormat default_format;
+  std::vector<TextFormat> formats;
 
 public:
   explicit QTypewriterContext(QTypewriter* w, typewriter::TextDocument* doc);
@@ -145,6 +146,7 @@ public:
   ~QTypewriter();
 
   TextDocument* document() const;
+  TextView& view() const;
 
   QTypewriterGutter* gutter() const;
 
@@ -183,6 +185,9 @@ public:
   const TextFormat& defaultFormat() const;
   void setDefaultFormat(const TextFormat& format);
 
+  const TextFormat& textFormat(int id) const;
+  void setTextFormat(int id, const TextFormat& fmt);
+
   //SyntaxHighlighter* syntaxHighlighter() const;
   //void setSyntaxHighlighter(SyntaxHighlighter* highlighter);
 
@@ -215,7 +220,7 @@ protected:
   void paint(QPainter* painter);
   virtual void drawLine(QPainter* painter, const QPoint& offset, const view::Line& line);
   virtual void drawFoldSymbol(QPainter* painter, const QPoint& offset, int foldid);
-  void drawBlockFragment(QPainter* painter, const QPoint& offset, const view::LineElement& fragment);
+  void drawBlockFragment(QPainter* painter, QPoint offset, const view::Line& line, const view::LineElement& fragment);
   //void drawFragment(QPainter* painter, QPoint& offset, view::Fragment fragment);
   void drawText(QPainter* painter, const QPoint& offset, const QString& text, const TextFormat& format);
   void drawStrikeOut(QPainter* painter, const QPoint& offset, const TextFormat& fmt, int count);

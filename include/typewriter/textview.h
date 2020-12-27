@@ -18,7 +18,8 @@ namespace typewriter
 
 namespace view
 {
-class Fragment;
+class StyledFragment;
+class StyledFragments;
 class Block;
 class Line;
 } // namespace view
@@ -68,6 +69,8 @@ public:
 
   const std::vector<view::Insert>& inserts() const;
   const std::vector<view::InlineInsert>& inlineInserts() const;
+
+  view::StyledFragments fragments(const view::Line& line, const view::LineElement& le) const;
 
   inline TextViewImpl* impl() const { return d.get(); }
 

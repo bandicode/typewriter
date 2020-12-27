@@ -6,6 +6,7 @@
 
 #include "typewriter/textblock.h"
 #include "typewriter/private/texteditor_p.h"
+#include "typewriter/view/fragment.h"
 
 #include <QKeyEvent>
 #include <QMouseEvent>
@@ -283,7 +284,7 @@ QTypewriterContext::QTypewriterContext(QTypewriter* w, typewriter::TextDocument*
     document(doc),
     view(doc)
 {
-
+  this->formats.resize(16);
 }
 
 QTypewriterVisibleLines QTypewriterContext::visibleLines() const
@@ -428,6 +429,11 @@ void QTypewriter::init()
 TextDocument* QTypewriter::document() const
 {
   return m_context->document;
+}
+
+TextView& QTypewriter::view() const
+{
+  return m_context->view;
 }
 
 QTypewriterGutter* QTypewriter::gutter() const
@@ -740,6 +746,18 @@ const TextFormat& QTypewriter::defaultFormat() const
 void QTypewriter::setDefaultFormat(const TextFormat& format)
 {
   m_context->default_format = format;
+  m_context->formats[0] = format;
+  update();
+}
+
+const TextFormat& QTypewriter::textFormat(int id) const
+{
+  return m_context->formats.at(id);
+}
+
+void QTypewriter::setTextFormat(int id, const TextFormat& fmt)
+{
+  m_context->formats[id] = fmt;
   update();
 }
 
@@ -862,7 +880,7 @@ void QTypewriter::drawLine(QPainter* painter, const QPoint& offset, const view::
     }
     else if (e.kind == view::LineElement::LE_BlockFragment)
     {
-      drawBlockFragment(painter, pt, e);
+      drawBlockFragment(painter, pt, line, e);
       pt.rx() += e.width * m_context->metrics.charwidth;
     }
   }
@@ -875,13 +893,18 @@ void QTypewriter::drawFoldSymbol(QPainter* painter, const QPoint& offset, int fo
   throw std::runtime_error{ "Not implemented" };
 }
 
-void QTypewriter::drawBlockFragment(QPainter* painter, const QPoint& offset, const view::LineElement& fragment)
+void QTypewriter::drawBlockFragment(QPainter* painter, QPoint offset, const view::Line& line, const view::LineElement& fragment)
 {
-  // @TODO: take into account syntax highlighting
-  // This will require some kind of loop that iterates over the formats 
-  // in the range [fragment.begin, fragment.begin + fragment.width).
-  QString text = QString::fromStdString(fragment.block.text().substr(fragment.begin, fragment.width));
-  drawText(painter, offset, text, m_context->default_format);
+  view::StyledFragments fragments = m_context->view.fragments(line, fragment);
+
+  for (auto it = fragments.begin(); it != fragments.end(); it = it.next())
+  {
+    //QString text = QString::fromStdString(fragment.block.text().substr(fragment.begin, fragment.width));
+    //drawText(painter, offset, text, m_context->default_format);
+    QString text = QString::fromStdString(it.text());
+    drawText(painter, offset, text, textFormat(it.format()));
+    offset.rx() += it.length() * m_context->metrics.charwidth;
+  }
 }
 
 void QTypewriter::drawStrikeOut(QPainter* painter, const QPoint& offset, const TextFormat& fmt, int count)
@@ -1257,6 +1280,12 @@ void QTypewriter::drawCursor(QPainter *painter, const TextCursor & c)
 
 void QTypewriter::drawSelection(QPainter *painter, TextBlock block, const Position & begin, const Position & end)
 {
+  // @TODO: to simplify selection drawing (if we want to change text color
+  // and not just draw unicolor overlay):
+  // redraw everything into a pixmap by modifying the text format,
+  // the blit the selected sections over the 'un-selected' rendering.
+  // really not performance friendly but much simpler & powerfull
+
   painter->setPen(Qt::NoPen);
   painter->setBrush(QBrush(QColor(100, 100, 255, 100)));
 

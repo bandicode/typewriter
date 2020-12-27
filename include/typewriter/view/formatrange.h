@@ -14,8 +14,8 @@ namespace view
 struct FormatRange
 {
   int format_id = 0;
-  size_t start;
-  size_t length;
+  int start;
+  int length;
 };
 
 } // namespace view
