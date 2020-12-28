@@ -117,24 +117,51 @@ public:
 
 } // namespace details
 
+enum class MarkerType
+{
+  Breakpoint = 1,
+  Breakposition = 2,
+};
+
+struct Marker
+{
+  int line = -1;
+  int markers = 0;
+};
+
 class QTypewriterGutter : public QWidget
 {
+  Q_OBJECT
 public:
   QTypewriterGutter(std::shared_ptr<details::QTypewriterContext> context, QWidget* parent);
   ~QTypewriterGutter();
 
+  void addMarker(int line, MarkerType m);
+  void clearMarkers();
+  void removeMarkers(int line);
+  void removeMarker(int line, MarkerType m);
+
   virtual QSize sizeHint() const override;
+
+Q_SIGNALS:
+  void clicked(int line);
 
 protected:
   int columnCount() const;
 
 protected:
-  void paintEvent(QPaintEvent* e);
+  void mousePressEvent(QMouseEvent* e) override;
+  void paintEvent(QPaintEvent* e) override;
 
+protected:
+  void drawMarkers(QPainter& painter, QPoint pt, int markers);
+  
   void writeNumber(QString& str, int n);
+  bool find_marker(int line, std::vector<Marker>::const_iterator& it) const;
 
 private:
   std::shared_ptr<details::QTypewriterContext> d;
+  std::vector<Marker> m_markers;
 };
 
 class TYPEWRITER_API QTypewriter : public QWidget

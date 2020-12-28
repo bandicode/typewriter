@@ -17,6 +17,7 @@
 
 #include <QScrollBar>
 
+#include <algorithm>
 #include <stdexcept>
 
 namespace typewriter
@@ -323,9 +324,92 @@ QTypewriterGutter::~QTypewriterGutter()
 
 }
 
+void QTypewriterGutter::addMarker(int line, MarkerType m)
+{
+  auto it = std::find_if(m_markers.begin(), m_markers.end(), [line](const Marker& m) {
+    return m.line >= line;
+    });
+
+  if (it == m_markers.end() || it->line > line)
+  {
+    Marker marker;
+    marker.line = line;
+    marker.markers = static_cast<int>(m);
+    m_markers.insert(it, marker);
+    update();
+  }
+  else
+  {
+    it->markers |= static_cast<int>(m);
+    update();
+  }
+}
+
+void QTypewriterGutter::clearMarkers()
+{
+  if (!m_markers.empty())
+  {
+    m_markers.clear();
+    update();
+  }
+}
+
+void QTypewriterGutter::removeMarkers(int line)
+{
+  auto it = std::find_if(m_markers.begin(), m_markers.end(), [line](const Marker& m) {
+    return m.line == line;
+    });
+
+  if (it != m_markers.end())
+  {
+    m_markers.erase(it);
+    update();
+  }
+}
+
+void QTypewriterGutter::removeMarker(int line, MarkerType m)
+{
+  auto it = std::find_if(m_markers.begin(), m_markers.end(), [line](const Marker& m) {
+    return m.line == line;
+    });
+
+  if (it != m_markers.end())
+  {
+    int markers = it->markers;
+    it->markers = it->markers & ~static_cast<int>(m);
+
+    if (it->markers != markers)
+      update();
+  }
+}
+
 QSize QTypewriterGutter::sizeHint() const
 {
   return QSize{ d->metrics.charwidth * columnCount() + 4, 66 };
+}
+
+void QTypewriterGutter::mousePressEvent(QMouseEvent* e)
+{
+  if (e->pos().x() <= d->metrics.charwidth)
+  {
+    int line = e->pos().y() / d->metrics.lineheight;
+
+    auto it = std::next(d->view.lines().begin(), d->first_visible_line);
+
+    const int count = 1 + d->widget->viewport().height() / d->metrics.lineheight;
+
+    for (int i(0); i < count && it != d->view.lines().end(); ++i, ++it, --line)
+    {
+      if (it->elements.empty() || !it->elements.front().block.isValid())
+        continue;
+
+      if (line == 0)
+      {
+        int blocknum = it->elements.front().block.blockNumber();
+        Q_EMIT clicked(blocknum);
+      }
+    }
+  }
 }
 
 void QTypewriterGutter::paintEvent(QPaintEvent* e)
@@ -342,6 +426,7 @@ void QTypewriterGutter::paintEvent(QPaintEvent* e)
   painter.drawLine(this->width() - 1, 0, this->width() - 1, this->height());
 
   auto it = std::next(d->view.lines().begin(), d->first_visible_line);
+  std::vector<Marker>::const_iterator marker_it = m_markers.cbegin();
 
   const int count = 1 + d->widget->viewport().height() / d->metrics.lineheight;
 
@@ -352,12 +437,32 @@ void QTypewriterGutter::paintEvent(QPaintEvent* e)
     if (it->elements.empty() || !it->elements.front().block.isValid())
       continue;
 
-    writeNumber(label, it->elements.front().block.blockNumber() + 1);
+    // @TODO: improve performance, avoid recomputing the block number every time
+    int blocknum = it->elements.front().block.blockNumber();
+    writeNumber(label, blocknum + 1);
+
+    if (find_marker(blocknum, marker_it))
+      drawMarkers(painter, QPoint(0, i * d->metrics.lineheight), marker_it->markers);
 
     painter.drawText(QPoint(0, i * d->metrics.lineheight + d->metrics.ascent), label);
   }
 
   // @TODO: draw cursors
+}
+
+void QTypewriterGutter::drawMarkers(QPainter& painter, QPoint pt, int markers)
+{
+  if (markers & static_cast<int>(MarkerType::Breakpoint))
+  {
+    painter.setBrush(QBrush(Qt::red));
+    painter.drawEllipse(QRect(pt, QSize(d->metrics.charwidth, d->metrics.lineheight)));
+  }
+
+  if (markers & static_cast<int>(MarkerType::Breakposition))
+  {
+    painter.setBrush(QBrush(Qt::yellow));
+    painter.drawEllipse(QRect(pt, QSize(d->metrics.charwidth, d->metrics.lineheight)));
+  }
 }
 
 int QTypewriterGutter::columnCount() const
@@ -369,7 +474,7 @@ int QTypewriterGutter::columnCount() const
     n /= 10;
     result += 1;
   }
-  return result;
+  return result + 1;
 }
 
 void QTypewriterGutter::writeNumber(QString& str, int n)
@@ -379,6 +484,17 @@ void QTypewriterGutter::writeNumber(QString& str, int n)
     str[str.size() - i] = (n == 0 ? ' ' : '0' + (n % 10));
     n /= 10;
   }
+}
+
+bool QTypewriterGutter::find_marker(int line, std::vector<Marker>::const_iterator& it) const
+{
+  if (it == m_markers.end())
+    return false;
+
+  while (it != m_markers.end() && it->line < line)
+    ++it;
+
+  return it != m_markers.end() && it->line == line;
 }
 
 QTypewriter::QTypewriter(QWidget* parent)
