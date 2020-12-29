@@ -22,15 +22,14 @@ class TextViewImpl;
 namespace view
 {
 
-class Fragment;
-
 class Block
 {
 public:
   TextBlock block;
   std::vector<FormatRange> formats;
-  int userstate;
-  int revision;
+  // @TODO: see what to do with these variables
+  // int userstate;
+  // int revision;
   std::weak_ptr<Block> prev;
   std::weak_ptr<Block> next;
   std::list<view::Line>::iterator line;

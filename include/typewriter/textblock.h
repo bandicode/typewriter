@@ -34,6 +34,7 @@ public:
 
   const std::string& text() const;
   int length() const;
+  size_t size() const;
 
   int blockNumber() const;
   int offset() const;

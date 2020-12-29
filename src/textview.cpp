@@ -42,8 +42,8 @@ std::string Line::displayedText() const
 
 Block::Block(const TextBlock& b, std::list<view::Line>::iterator l)
   : block(b)
-  , userstate(0)
-  , revision(-1)
+  //, userstate(0)
+  // , revision(-1)
   , line(l)
 {
 
@@ -54,70 +54,6 @@ Block::~Block()
 
 }
 
-//Fragment::Fragment()
-//{
-//
-//}
-//
-//Fragment::~Fragment()
-//{
-//
-//}
-//
-//Fragment::Fragment(Block const* line, int col, std::vector<FormatRange>::const_iterator iter, std::vector<FormatRange>::const_iterator sentinel, TextViewImpl const* view)
-//  : mLine(line)
-//  , mColumn(col)
-//  , mIterator(iter)
-//  , mSentinel(sentinel)
-//  , mView(view)
-//{
-//
-//}
-//
-//int Fragment::format() const
-//{
-//  return (mIterator == mSentinel || mColumn < mIterator->start) ? 0 : mIterator->format_id;
-//}
-//
-//int Fragment::position() const
-//{
-//  return mColumn;
-//}
-//
-//int Fragment::length() const
-//{
-//  return mIterator == mSentinel ? (mLine->block.length() - mColumn) : static_cast<int>(mColumn < mIterator->start ? mIterator->start - mColumn : mIterator->length);
-//}
-//
-//TextBlock Fragment::block() const
-//{
-//  return mLine->block;
-//}
-//
-//std::string Fragment::text() const
-//{
-//  return mLine->block.text().substr(position(), length());
-//}
-//
-//Fragment Fragment::next() const
-//{
-//  if (mIterator == mSentinel)
-//    return Fragment{ mLine, mLine->block.length(), mSentinel, mSentinel, mView };
-//  else if (mColumn < mIterator->start)
-//    return Fragment(mLine, static_cast<int>(mIterator->start), mIterator, mSentinel, mView);
-//  else
-//    return Fragment(mLine, mColumn + static_cast<int>(mIterator->length), std::next(mIterator), mSentinel, mView);
-//}
-//
-//bool Fragment::operator==(const Fragment& other) const
-//{
-//  return mLine == other.mLine && other.mColumn == mColumn;
-//}
-//
-//bool Fragment::operator!=(const Fragment& other) const
-//{
-//  return mLine != other.mLine || other.mColumn != mColumn;
-//}
 
 StyledFragment::StyledFragment()
 {

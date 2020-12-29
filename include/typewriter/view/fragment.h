@@ -21,42 +21,6 @@ namespace view
 
 class Block;
 
-//class TYPEWRITER_API Fragment
-//{
-//public:
-//  Fragment();
-//  Fragment(const Fragment & other) = default;
-//  ~Fragment();
-//
-//  Fragment(Block const *line, int col, std::vector<FormatRange>::const_iterator iter, std::vector<FormatRange>::const_iterator sentinel, TextViewImpl const *view);
-//  
-//  inline bool isNull() const { return mView == nullptr; }
-//
-//  int format() const;
-//  int position() const;
-//  int length() const;
-//
-//  TextBlock block() const;
-//  std::string text() const;
-//
-//  Fragment next() const;
-//
-//  Fragment & operator=(const Fragment &) = default;
-//  bool operator==(const Fragment & other) const;
-//  bool operator!=(const Fragment & other) const;
-//
-//protected:
-//  friend class TextView;
-//  friend class TextViewImpl;
-//
-//private:
-//  Block const *mLine;
-//  int mColumn;
-//  std::vector<FormatRange>::const_iterator mIterator;
-//  std::vector<FormatRange>::const_iterator mSentinel;
-//  TextViewImpl const *mView;
-//};
-
 class TYPEWRITER_API StyledFragment
 {
 public:

@@ -18,10 +18,19 @@
 namespace typewriter
 {
 
-struct Position
+class Position
 {
+public:
   int line;
   int column;
+
+  Position(int l = 0, int col = 0)
+    : line(l), column(col)
+  {
+
+  }
+
+  Position& operator=(const Position&) = default;
 };
 
 inline bool operator==(const Position & lhs, const Position & rhs) { return lhs.line == rhs.line && lhs.column == rhs.column; }
@@ -30,12 +39,6 @@ inline bool operator<(const Position & lhs, const Position & rhs) { return lhs.l
 inline bool operator<=(const Position & lhs, const Position & rhs) { return lhs.line < rhs.line || (lhs.line == rhs.line && lhs.column <= rhs.column); }
 inline bool operator>(const Position & lhs, const Position & rhs) { return !(lhs <= rhs); }
 inline bool operator>=(const Position & lhs, const Position & rhs) { return !(lhs < rhs); }
-
-struct LineRange
-{
-  int start;
-  int end;
-};
 
 } // namespace typewriter
 

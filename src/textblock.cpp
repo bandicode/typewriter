@@ -175,7 +175,13 @@ const std::string& TextBlock::text() const
 
 int TextBlock::length() const
 {
+  // @TODO: return number of unicode char
   return mImpl->content.length();
+}
+
+size_t TextBlock::size() const
+{
+  return mImpl->content.size();
 }
 
 int TextBlock::blockNumber() const

@@ -226,7 +226,7 @@ public:
 
   /// rename to 'incrustWidget' ?
   void insertWidget(int line, int num, QWidget* w);
-  const QMap<LineRange, QWidget*>& insertedWidgets() const;
+  //const QMap<LineRange, QWidget*>& insertedWidgets() const;
   void insertFloatingWidget(QWidget* widget, const QPoint& pos);
 
 protected:
