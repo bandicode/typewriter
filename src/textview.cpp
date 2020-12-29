@@ -65,26 +65,14 @@ StyledFragment::~StyledFragment()
 
 }
 
-StyledFragment::StyledFragment(TextViewImpl const* view, Line const* line, LineElement elem)
-  : mView(view)
-  , mLine(line)
-  , mColumn(elem.begin)
-  , mEnd(elem.begin + elem.width)
-  , m_block(view->blocks.at(elem.block.impl()))
-  , mIterator(m_block->formats.end())
+StyledFragment::StyledFragment(TextViewImpl const* view, Line const* /* line */, LineElement elem)
+  : StyledFragment(view, elem.block, elem.begin, elem.begin + elem.width)
 {
-  auto it = std::find_if(m_block->formats.begin(), m_block->formats.end(), [&](const view::FormatRange& fr) {
-    return (mColumn >= fr.start && mColumn < (fr.start + fr.length))
-      || (fr.start >= mColumn);
-    });
 
-  if (it != m_block->formats.end() && mEnd > it->start)
-    mIterator = it;
 }
 
-StyledFragment::StyledFragment(TextViewImpl const* view, Line const* line, const TextBlock& block, int begin, int end)
+StyledFragment::StyledFragment(TextViewImpl const* view, const TextBlock& block, int begin, int end)
   : mView(view)
-  , mLine(line)
   , mColumn(begin)
   , mEnd(end)
   , m_block(view->blocks.at(block.impl()))
@@ -99,9 +87,8 @@ StyledFragment::StyledFragment(TextViewImpl const* view, Line const* line, const
     mIterator = it;
 }
 
-StyledFragment::StyledFragment(TextViewImpl const* view, Line const* line, const TextBlock& block, int begin, int end, std::vector<FormatRange>::const_iterator iter)
+StyledFragment::StyledFragment(TextViewImpl const* view, const TextBlock& block, int begin, int end, std::vector<FormatRange>::const_iterator iter)
   : mView(view)
-  , mLine(line)
   , mColumn(begin)
   , mEnd(end)
   , m_block(view->blocks.at(block.impl()))
@@ -150,14 +137,14 @@ StyledFragment StyledFragment::next() const
 {
   if (mIterator == m_block->formats.end())
   {
-    return StyledFragment(mView, mLine, m_block->block, mEnd, mEnd, m_block->formats.end());
+    return StyledFragment(mView, m_block->block, mEnd, mEnd, m_block->formats.end());
   }
   else if (mColumn < mIterator->start)
   {
     if (mEnd < mIterator->start) // @TODO: this case should never happen
-      return StyledFragment(mView, mLine, m_block->block, mEnd, mEnd, m_block->formats.end());
+      return StyledFragment(mView, m_block->block, mEnd, mEnd, m_block->formats.end());
     else
-      return StyledFragment(mView, mLine, m_block->block, mIterator->start, mEnd, mIterator);
+      return StyledFragment(mView, m_block->block, mIterator->start, mEnd, mIterator);
   }
   else
   {
@@ -165,28 +152,28 @@ StyledFragment StyledFragment::next() const
 
     if (mEnd <= mIterator->start + mIterator->length)
     {
-      return StyledFragment(mView, mLine, m_block->block, mEnd, mEnd, m_block->formats.end());
+      return StyledFragment(mView, m_block->block, mEnd, mEnd, m_block->formats.end());
     }
     else
     {
       auto next = mIterator + 1;
 
       if (next == m_block->formats.end() || mEnd <= next->start)
-        return StyledFragment(mView, mLine, m_block->block, mIterator->start + mIterator->length, mEnd, m_block->formats.end());
+        return StyledFragment(mView, m_block->block, mIterator->start + mIterator->length, mEnd, m_block->formats.end());
       else
-        return StyledFragment(mView, mLine, m_block->block, mIterator->start + mIterator->length, mEnd, next);
+        return StyledFragment(mView, m_block->block, mIterator->start + mIterator->length, mEnd, next);
     }
   }
 }
 
 bool StyledFragment::operator==(const StyledFragment& other) const
 {
-  return mLine == other.mLine && other.mColumn == mColumn && other.mEnd == mEnd;
+  return m_block == other.m_block && other.mColumn == mColumn && other.mEnd == mEnd;
 }
 
 bool StyledFragment::operator!=(const StyledFragment& other) const
 {
-  return mLine != other.mLine || other.mColumn != mColumn || other.mEnd != mEnd;
+  return m_block != other.m_block || other.mColumn != mColumn || other.mEnd != mEnd;
 }
 
 StyledFragments::StyledFragments(TextViewImpl const* view, Line const* line, LineElement elem)
@@ -201,12 +188,12 @@ StyledFragments::StyledFragments(TextViewImpl const* view, Line const* line, Lin
 
 StyledFragment StyledFragments::begin() const
 {
-  return StyledFragment(m_view, m_line, m_block, m_begin, m_end);
+  return StyledFragment(m_view, m_block, m_begin, m_end);
 }
 
 StyledFragment StyledFragments::end() const
 {
-  return StyledFragment(m_view, m_line, m_block, m_end, m_end);
+  return StyledFragment(m_view, m_block, m_end, m_end);
 }
 
 } // namespace view

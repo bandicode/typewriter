@@ -7,9 +7,7 @@
 
 #include "typewriter/textblock.h"
 #include "typewriter/stringview.h"
-#include "typewriter/view/formatrange.h"
 
-#include <list>
 #include <vector>
 
 namespace typewriter

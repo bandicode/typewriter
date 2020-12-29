@@ -29,8 +29,7 @@ public:
   ~StyledFragment();
 
   StyledFragment(TextViewImpl const* view, Line const* line, LineElement elem);
-  StyledFragment(TextViewImpl const* view, Line const* line, const TextBlock& block, int begin, int end);
-  StyledFragment(TextViewImpl const* view, Line const* line, const TextBlock& block, int begin, int end, std::vector<FormatRange>::const_iterator iter);
+  StyledFragment(TextViewImpl const* view, const TextBlock& block, int begin, int end);
 
   inline bool isNull() const { return mView == nullptr; }
 
@@ -51,9 +50,10 @@ protected:
   friend class TextView;
   friend class TextViewImpl;
 
+  StyledFragment(TextViewImpl const* view, const TextBlock& block, int begin, int end, std::vector<FormatRange>::const_iterator iter);
+
 private:
   TextViewImpl const* mView = nullptr;
-  Line const* mLine = nullptr;
   int mColumn = -1;
   int mEnd = -1;
   std::shared_ptr<view::Block> m_block;
@@ -71,6 +71,8 @@ public:
 
   StyledFragment begin() const;
   StyledFragment end() const;
+
+  StyledFragments& operator=(const StyledFragments&) = default;
 
 protected:
   friend class TextView;
