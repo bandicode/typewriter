@@ -33,6 +33,12 @@ public:
 
   TextDocument* document() const;
 
+  // @TODO: (maybe?) add 'transaction' notifiers & remove TextDocumentTransaction from TextDocumentImpl
+  // This would provide an 'external' way to implement cursor-based undo/redo (or contributor-based if desired 
+  // but that is outside the scope of the document class)
+  // virtual void beginTransaction(TextCursor*);
+  // virtual void endTransaction(TextCursor*);
+
   /*!
    * \fn virtual void blockInserted(const Position& pos, const TextBlock& newblock);
    * \param position in the previous block
@@ -61,7 +67,7 @@ public:
   TextBlock lastBlock() const;
   TextBlock findBlockByNumber(int num) const;
 
-  /// TODO: validate this candidate interface 
+  /// TODO: validate this candidate interface or (maybe?) remove
   int availableUndoSteps() const;
   inline bool isUndoAvailable() const { return availableUndoSteps() > 0; }
   int availableRedoSteps() const;

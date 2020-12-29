@@ -440,7 +440,7 @@ void Composer::Iterator::seek(const view::Line& l)
 void Composer::Iterator::seek(const TextBlock& b)
 {
   textblock = b.begin();
-  line = b.blockNumber();
+  line = b.blockNumber(); // @TODO: (performance) if relayout is needed after an edit, we could pass the line number with cursor.position()
 
   Position pos{ line, textblock.column() };
 

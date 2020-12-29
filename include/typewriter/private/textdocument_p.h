@@ -20,6 +20,7 @@ namespace typewriter
 class Contributor;
 class TextDocument;
 
+// @TODO: rework the undo/redo system
 class Author
 {
 public:
@@ -104,11 +105,10 @@ public:
 
   int idgen;
 
+  // @TODO: rework the undo/redo system
   TextDocumentTransaction transaction;
-
   std::vector<Contribution> m_undo_stack;
   std::vector<Contribution> m_redo_stack;
-
   bool cursors_are_ghosts = false;
 
 public:
@@ -129,9 +129,9 @@ public:
   void deletePreviousChar(Position pos, const TextBlock & block);
   void removeSelection(const Position begin, const TextBlock & beginBlock, const Position end);
 
+  // @TODO: rework the undo/redo system
   void beginTransaction(Author author);
   void endTransaction(Author author);
-
   void undo(Author author);
   void redo(Author author);
 
@@ -141,6 +141,7 @@ protected:
 
   void remove_block(int blocknum, TextBlock block);
 
+  // @TODO: rework the undo/redo system
   void apply(const TextDiff& diff, bool inv = false);
   void revert(const TextDiff& diff);
 };

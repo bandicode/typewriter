@@ -65,9 +65,11 @@ public:
   void clearSelection();
   void removeSelectedText();
 
+  // @TODO: (maybe?) remove the undo/redo from TextCursor in favor of external
+  // UndoStack (implemented with a TextDocumentListener).
+  // UndoStack could be TextCursor based or Contributor based.
   void beginEdit();
   void endEdit();
-
   void undo();
   void redo();
 
