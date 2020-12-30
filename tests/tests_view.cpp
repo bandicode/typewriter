@@ -5,9 +5,11 @@
 #include "catch.hpp"
 
 
+#include "typewriter/syntaxhighlighter.h"
 #include "typewriter/textblock.h"
 #include "typewriter/textcursor.h"
 #include "typewriter/textview.h"
+#include "typewriter/view/fragment.h"
 
 #include <chrono>
 #include <fstream>
@@ -159,6 +161,71 @@ TEST_CASE("TextView reacts correctly to edits", "[view]")
 
   REQUIRE(view.height() == 6);
   REQUIRE(view.width() == 11);
+}
+
+TEST_CASE("TextView supports basic syntax highlighting", "[view.highlight]")
+{
+  const char* source =
+    "\n"
+    "void main()\n"
+    "{\n"
+    "  print(66);\n"
+    "}\n";
+
+  TextDocument document{
+    source
+  };
+
+  TextView view{ &document };
+
+  REQUIRE(view.lines().size() == 6);
+
+  typewriter::SyntaxHighlighter highlighter{ view };
+  highlighter.setFormat(1, 0, 4, 1);
+  highlighter.setFormat(3, 2, 5, 2);
+  highlighter.setFormat(3, 8, 2, 3);
+
+  auto it = view.lines().begin();
+  ++it;
+  REQUIRE(it->displayedText() == "void main()");
+  REQUIRE(it->elements.size() == 1);
+
+  {
+    view::StyledFragments fragments = view.fragments(*it, it->elements.front());
+
+    view::StyledFragment frag = fragments.begin();
+    REQUIRE(frag.text() == "void");
+    REQUIRE(frag.format() == 1);
+    frag = frag.next();
+    REQUIRE(frag.text() == " main()");
+    REQUIRE(frag.format() == 0);
+    frag = frag.next();
+    REQUIRE(frag == fragments.end());
+  }
+
+  ++it;
+  ++it;
+
+  REQUIRE(it->displayedText() == "  print(66);");
+  REQUIRE(it->elements.size() == 1);
+
+  {
+    view::StyledFragments fragments = view.fragments(*it, it->elements.front());
+
+    view::StyledFragment frag = fragments.begin();
+    REQUIRE(frag.text() == "  ");
+    REQUIRE(frag.format() == 0);
+    frag = frag.next();
+    REQUIRE(frag.text() == "print");
+    REQUIRE(frag.format() == 2);
+    frag = frag.next();
+    frag = frag.next();
+    REQUIRE(frag.text() == "66");
+    REQUIRE(frag.format() == 3);
+    frag = frag.next();
+    frag = frag.next();
+    REQUIRE(frag == fragments.end());
+  }
 }
 
 TEST_CASE("TextView can handle catch.hpp", "[view-bench]")

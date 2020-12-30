@@ -5,7 +5,6 @@
 #include "codeeditor.h"
 
 #include "typewriter/textblock.h"
-#include "typewriter/private/texteditor_p.h"
 #include "typewriter/view/fragment.h"
 
 #include <QKeyEvent>
