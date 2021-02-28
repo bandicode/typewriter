@@ -375,6 +375,11 @@ int QTypewriterView::columnCount() const
   return m_view.width();
 }
 
+int QTypewriterView::effectiveWidth()
+{
+  return view().width() * metrics().charwidth;
+}
+
 int QTypewriterView::tabSize() const
 {
   return m_view.tabSize();
@@ -427,6 +432,8 @@ int QTypewriterView::linescroll() const
 
 void QTypewriterView::setLineScroll(int linescroll)
 {
+  linescroll = std::max(0, std::min(linescroll, lineCount()));
+
   if (m_linescroll != linescroll)
   {
     m_linescroll = linescroll;
@@ -609,7 +616,7 @@ static bool map_pos_complex(const Position& pos, const view::Line& line, int& co
   return false;
 }
 
-QPoint QTypewriterView::mapToViewport(const Position& pos) const
+QPoint QTypewriterView::map(const Position& pos) const
 {
   auto visible_lines = visibleLines();
 
@@ -643,11 +650,6 @@ QPoint QTypewriterView::mapToViewport(const Position& pos) const
   int dx = column_offset * metrics().charwidth;
 
   return QPoint{ dx - hscroll(), dy };
-}
-
-QPoint QTypewriterView::map(const Position& pos) const
-{
-  return mapToViewport(pos);
 }
 
 bool QTypewriterView::isVisible(const Position& pos) const

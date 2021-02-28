@@ -44,7 +44,7 @@ class QTypewriterGutter : public QWidget
 {
   Q_OBJECT
 public:
-  QTypewriterGutter(std::shared_ptr<details::QTypewriterContextWidget> context, QWidget* parent);
+  QTypewriterGutter(QTypewriterView* context, QWidget* parent);
   ~QTypewriterGutter();
 
   void addMarker(int line, MarkerType m);
@@ -71,7 +71,7 @@ protected:
   bool find_marker(int line, std::vector<Marker>::const_iterator& it) const;
 
 private:
-  std::shared_ptr<details::QTypewriterContextWidget> d;
+  QTypewriterView* d;
   std::vector<Marker> m_markers;
 };
 
@@ -186,7 +186,7 @@ protected:
   void drawSelection(QPainter *painter, TextBlock block, const Position & begin, const Position & end);
 
 protected:
-  std::shared_ptr<details::QTypewriterContextWidget> m_context;
+  QTypewriterView* m_view;
   QTypewriterGutter* m_gutter;
   Qt::ScrollBarPolicy m_hscrollbar_policy;
   QScrollBar* m_horizontal_scrollbar;

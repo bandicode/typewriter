@@ -191,6 +191,7 @@ class QTypewriterView : public QObject, public typewriter::TextDocumentListener
   Q_PROPERTY(int columnCount READ columnCount NOTIFY columnCountChanged)
   Q_PROPERTY(int tabSize READ tabSize WRITE setTabSize NOTIFY tabSizeChanged)
   Q_PROPERTY(QSize size READ size WRITE resize NOTIFY sizeChanged)
+  Q_PROPERTY(int effectiveWidth READ effectiveWidth NOTIFY columnCountChanged)
   Q_PROPERTY(int hscroll READ hscroll WRITE setHScroll NOTIFY hscrollChanged)
   Q_PROPERTY(int linescroll READ linescroll WRITE setLineScroll NOTIFY linescrollChanged)
   Q_PROPERTY(QFont font READ font WRITE setFont NOTIFY fontChanged)
@@ -209,6 +210,7 @@ public:
 
   int lineCount() const;
   int columnCount() const;
+  int effectiveWidth();
 
   int tabSize() const;
   void setTabSize(int colcount);
@@ -236,7 +238,6 @@ public:
   void paint(QPainter* painter);
 
   typewriter::Position hitTest(const QPoint& pos) const;
-  QPoint mapToViewport(const typewriter::Position& pos) const;
   QPoint map(const typewriter::Position& pos) const;
   bool isVisible(const typewriter::Position& pos) const;
 
