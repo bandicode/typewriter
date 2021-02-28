@@ -2,7 +2,7 @@
 // This file is part of the typewriter library
 // For conditions of distribution and use, see copyright notice in LICENSE
 
-#include "codeeditor.h"
+#include "typewriter/qt/codeeditor-widget.h"
 
 #include "typewriter/textblock.h"
 #include "typewriter/view/fragment.h"
