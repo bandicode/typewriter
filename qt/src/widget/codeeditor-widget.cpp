@@ -21,39 +21,6 @@
 namespace typewriter
 {
 
-namespace details
-{
-
-QTypewriterContextWidget::QTypewriterContextWidget(QTypewriter* w, typewriter::TextDocument* doc)
-  : QTypewriterContext(doc),
-    widget(w)
-{
-  this->formats.resize(16);
-}
-
-int QTypewriterContextWidget::availableHeight() const
-{
-  return this->widget->viewport().height();
-}
-
-void QTypewriterContextWidget::blockDestroyed(int line, const TextBlock& block)
-{
-  widget->onBlockDestroyed(line, block);
-}
-
-void QTypewriterContextWidget::blockInserted(const Position& pos, const TextBlock& block)
-{
-  widget->onBlockInserted(pos, block);
-}
-
-void QTypewriterContextWidget::contentsChange(const TextBlock& block, const Position& pos, int charsRemoved, int charsAdded)
-{
-  widget->onContentsChange(block, pos, charsRemoved, charsAdded);
-}
-
-} // namespace details
-
-
 QTypewriterGutter::QTypewriterGutter(QTypewriterView* context, QWidget* parent)
   : QWidget(parent)
   , d(context)
@@ -258,10 +225,6 @@ QTypewriter::~QTypewriter()
 
 void QTypewriter::init()
 {
-  //connect(document(), &TextDocument::blockDestroyed, this, &QTypewriter::onBlockDestroyed);
-  //connect(document(), &TextDocument::blockInserted, this, &QTypewriter::onBlockInserted);
-  //connect(document(), &TextDocument::contentsChange, this, &QTypewriter::onContentsChange);
-
   connect(m_view, &QTypewriterView::invalidated, this, qOverload<>(&QTypewriter::update));
 
   m_horizontal_scrollbar = new QScrollBar(Qt::Horizontal, this);
@@ -500,30 +463,6 @@ void QTypewriter::insertFloatingWidget(QWidget* widget, const QPoint& pos)
 {
   /// TODO
   throw std::runtime_error{ "Not implemented" };
-}
-
-void QTypewriter::onBlockDestroyed(int line, const TextBlock& block)
-{
-  m_vertical_scrollbar->setMaximum(m_view->lineCount());
-  updateLayout();
-
-  // @TODO: check if update is really needed
-  update();
-}
-
-void QTypewriter::onBlockInserted(const Position& pos, const TextBlock& block)
-{
-  m_vertical_scrollbar->setMaximum(m_view->lineCount());
-  updateLayout();
-
-  // @TODO: check if update is really needed
-  update();
-}
-
-void QTypewriter::onContentsChange(const TextBlock& block, const Position& pos, int charsRemoved, int charsAdded)
-{
-  // @TODO: check if update is really needed
-  update();
 }
 
 void QTypewriter::paintEvent(QPaintEvent* e)

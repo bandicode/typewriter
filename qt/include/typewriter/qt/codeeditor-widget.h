@@ -20,26 +20,6 @@ namespace typewriter
 {
 class QTypewriter;
 
-namespace details
-{
-
-class QTypewriterContextWidget : public QTypewriterContext
-{
-public:
-  QTypewriter* widget = nullptr;
-
-public:
-  explicit QTypewriterContextWidget(QTypewriter* w, typewriter::TextDocument* doc);
-
-  int availableHeight() const override;
-
-  void blockDestroyed(int line, const TextBlock& block) override;
-  void blockInserted(const Position& pos, const TextBlock& block) override;
-  void contentsChange(const TextBlock& block, const Position& pos, int charsRemoved, int charsAdded) override;
-};
-
-} // namespace details
-
 class QTypewriterGutter : public QWidget
 {
   Q_OBJECT
@@ -139,12 +119,6 @@ public:
   void insertWidget(int line, int num, QWidget* w);
   //const QMap<LineRange, QWidget*>& insertedWidgets() const;
   void insertFloatingWidget(QWidget* widget, const QPoint& pos);
-
-protected:
-  friend class details::QTypewriterContextWidget;
-  void onBlockDestroyed(int line, const TextBlock& block);
-  void onBlockInserted(const Position& pos, const TextBlock& block);
-  void onContentsChange(const TextBlock& block, const Position& pos, int charsRemoved, int charsAdded);
 
 protected:
   bool event(QEvent* ev) override;

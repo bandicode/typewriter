@@ -93,27 +93,6 @@ public:
   size_t size() const { return m_size; }
 };
 
-class QTypewriterContext : public typewriter::TextDocumentListener
-{
-public:
-  typewriter::TextDocument* document = nullptr;
-  typewriter::TextView view;
-  int first_visible_line = 0;
-  typewriter::Contributor default_contributor;
-  typewriter::Contributor* contributor = nullptr;
-  QTypewriterFontMetrics metrics;
-  TextFormat default_format;
-  std::vector<TextFormat> formats;
-
-public:
-  explicit QTypewriterContext(typewriter::TextDocument* doc);
-
-  QTypewriterVisibleLines visibleLines() const;
-  
-protected:
-  virtual int availableHeight() const = 0;
-};
-
 } // namespace details
 
 struct Marker
@@ -129,60 +108,6 @@ enum class MarkerType
   Breakpoint = 1,
   Breakposition = 2,
 };
-
-class QTypewriterRenderer
-{
-protected:
-  typewriter::TextView& m_view;
-  QPainter& m_painter;
-  TextFormat m_default_format;
-  const std::vector<TextFormat>& m_formats;
-  QTypewriterFontMetrics m_metrics;
-  QRect m_viewport;
-  int m_hscroll;
-
-public:
-
-  typedef std::list<typewriter::view::Line> list;
-  typedef std::list<typewriter::view::Line>::const_iterator iterator;
-
-  explicit QTypewriterRenderer(details::QTypewriterContext& context, QPainter& p, QRect vp, int hscroll);
-
-  typewriter::TextView& view();
-  const QTypewriterFontMetrics& metrics() const;
-  QPainter& painter();
-  const TextFormat& textFormat(int id) const;
-
-  void paint(iterator begin, iterator end);
-  virtual void drawLine(const QPoint& offset, const view::Line& line);
-  virtual void drawFoldSymbol(const QPoint& offset, int foldid);
-  void drawBlockFragment(QPoint offset, const view::Line& line, const view::LineElement& fragment);
-  void drawText(const QPoint& offset, const QString& text, const TextFormat& format);
-  void drawStrikeOut(const QPoint& offset, const TextFormat& fmt, int count);
-  void drawUnderline(const QPoint& offset, const TextFormat& fmt, int count);
-  void drawWaveUnderline(const QPoint& offset, const TextFormat& fmt, int count);
-  static void applyFormat(QPainter& painter, const TextFormat& fmt);
-};
-
-inline typewriter::TextView& QTypewriterRenderer::view()
-{
-  return m_view;
-}
-
-inline const QTypewriterFontMetrics& QTypewriterRenderer::metrics() const
-{
-  return m_metrics;
-}
-
-inline QPainter& QTypewriterRenderer::painter()
-{
-  return m_painter;
-}
-
-inline const TextFormat& QTypewriterRenderer::textFormat(int id) const
-{
-  return m_formats.at(static_cast<size_t>(id));
-}
 
 class QTypewriterView : public QObject, public typewriter::TextDocumentListener
 {
