@@ -109,9 +109,47 @@ enum class MarkerType
   Breakposition = 2,
 };
 
+class QTypewriterDocument : public QObject
+{
+  Q_OBJECT
+  Q_PROPERTY(QString filepath READ filepath WRITE setFilePath NOTIFY filepathChanged)
+  Q_PROPERTY(int lineCount READ lineCount NOTIFY lineCountChanged)
+public:
+  explicit QTypewriterDocument(QObject* parent = nullptr);
+  explicit QTypewriterDocument(typewriter::TextDocument* document, QObject* parent = nullptr);
+  explicit QTypewriterDocument(std::unique_ptr<typewriter::TextDocument> document, QObject* parent = nullptr);
+  ~QTypewriterDocument();
+
+  typewriter::TextDocument* document();
+  void setDocument(typewriter::TextDocument* doc);
+  void setDocument(std::unique_ptr<typewriter::TextDocument> doc);
+
+  QString filepath() const;
+  void setFilePath(const QString& filepath);
+
+  int lineCount() const;
+
+  void notifyBlockDestroyed(int line);
+  void notifyBlockInserted(const Position& pos, const TextBlock& block);
+  void notifyContentsChange(const TextBlock& block, const Position& pos, int charsRemoved, int charsAdded);
+
+Q_SIGNALS:
+  void filepathChanged();
+  void lineCountChanged();
+  void blockDestroyed();
+  void blockInserted(int line);
+
+private:
+  std::unique_ptr<typewriter::TextDocument> m_document_ptr;
+  typewriter::TextDocument* m_document = nullptr;
+  std::unique_ptr<typewriter::TextDocumentListener> m_listener;
+  QString m_filepath;
+};
+
 class QTypewriterView : public QObject, public typewriter::TextDocumentListener
 {
   Q_OBJECT
+  Q_PROPERTY(QObject* document READ document WRITE setDocument NOTIFY documentChanged)
   Q_PROPERTY(int lineCount READ lineCount NOTIFY lineCountChanged)
   Q_PROPERTY(int columnCount READ columnCount NOTIFY columnCountChanged)
   Q_PROPERTY(int tabSize READ tabSize WRITE setTabSize NOTIFY tabSizeChanged)
@@ -122,13 +160,12 @@ class QTypewriterView : public QObject, public typewriter::TextDocumentListener
   Q_PROPERTY(QFont font READ font WRITE setFont NOTIFY fontChanged)
 public:
   explicit QTypewriterView(QObject* parent = nullptr);
-  explicit QTypewriterView(typewriter::TextDocument* document, QObject* parent = nullptr);
-  explicit QTypewriterView(std::unique_ptr<typewriter::TextDocument> document, QObject* parent = nullptr);
+  explicit QTypewriterView(QTypewriterDocument* document, QObject* parent = nullptr);
   ~QTypewriterView();
 
-  typewriter::TextDocument* document();
-  void setDocument(typewriter::TextDocument* doc);
-  void setDocument(std::unique_ptr<typewriter::TextDocument> doc);
+  QTypewriterDocument* document();
+  void setDocument(QObject* doc);
+  void setDocument(QTypewriterDocument* doc);
 
   typewriter::TextView& view();
   const typewriter::TextView& view() const;
@@ -167,6 +204,7 @@ public:
   bool isVisible(const typewriter::Position& pos) const;
 
 Q_SIGNALS:
+  void documentChanged();
   void lineCountChanged();
   void columnCountChanged();
   void tabSizeChanged();
@@ -199,8 +237,7 @@ protected:
   details::QTypewriterVisibleLines visibleLines() const;
 
 private:
-  std::unique_ptr<typewriter::TextDocument> m_document_ptr;
-  typewriter::TextDocument* m_document = nullptr;
+  QTypewriterDocument* m_document = nullptr;
   typewriter::TextView m_view;
   QTypewriterFontMetrics m_metrics;
   TextFormat m_default_format;

@@ -63,7 +63,6 @@ class QTypewriterItem : public QQuickPaintedItem
   Q_PROPERTY(QObject* view READ view WRITE setView NOTIFY viewChanged)
 public:
   explicit QTypewriterItem(QQuickItem* parent = nullptr);
-  explicit QTypewriterItem(TextDocument *doc, QQuickItem* parent = nullptr);
   ~QTypewriterItem();
 
   QTypewriterView* view() const;

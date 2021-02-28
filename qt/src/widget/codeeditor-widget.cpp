@@ -213,7 +213,7 @@ QTypewriter::QTypewriter(QWidget* parent)
 
 QTypewriter::QTypewriter(TextDocument* document, QWidget* parent)
   : QWidget(parent),
-    m_view(new QTypewriterView(document, this))
+    m_view(new QTypewriterView(new QTypewriterDocument(document, this), this))
 {
   init();
 }
@@ -251,7 +251,7 @@ void QTypewriter::init()
 
 TextDocument* QTypewriter::document() const
 {
-  return m_view->document();
+  return m_view->document()->document();
 }
 
 TextView& QTypewriter::view() const

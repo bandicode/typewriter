@@ -14,7 +14,7 @@
 #include <QPainter>
 #include <QPainterPath>
 
-#include <QScrollBar>
+#include <QFile>
 
 #include <algorithm>
 #include <stdexcept>
@@ -75,49 +75,168 @@ static void fill_with_pattern(QPainter& painter, const QRect& rect, const QPixma
     painter.drawPixmap(QPoint(x, y), pattern, QRect(0, 0, partial_width, pattern.height()));
 }
 
-QTypewriterView::QTypewriterView(QObject* parent)
-  : QObject(parent),
-    m_document_ptr(new typewriter::TextDocument),
-    m_document(m_document_ptr.get()),
-    m_view(m_document),
-    m_size(400, 600)
+class DocumentDocListener : public typewriter::TextDocumentListener
 {
-  m_formats.resize(16);
+public:
+  QTypewriterDocument& backref;
 
+public:
+  DocumentDocListener(QTypewriterDocument& doc)
+    : backref(doc)
   {
-    QFont font{ "Courier" };
-    font.setKerning(false);
-    font.setStyleHint(QFont::TypeWriter);
-    font.setFixedPitch(true);
-    font.setPixelSize(14);
-    setFont(font);
+
   }
+
+  void blockDestroyed(int line, const TextBlock& block)
+  {
+    backref.notifyBlockDestroyed(line);
+  }
+
+  void blockInserted(const Position& pos, const TextBlock& block)
+  {
+    backref.notifyBlockInserted(pos, block);
+  }
+
+  void contentsChange(const TextBlock& block, const Position& pos, int charsRemoved, int charsAdded)
+  {
+    backref.notifyContentsChange(block, pos, charsRemoved, charsAdded);
+  }
+};
+
+QTypewriterDocument::QTypewriterDocument(QObject* parent)
+  : QObject(parent),
+    m_listener(new DocumentDocListener(*this))
+{
+
 }
 
-QTypewriterView::QTypewriterView(typewriter::TextDocument* document, QObject* parent)
+QTypewriterDocument::QTypewriterDocument(typewriter::TextDocument* document, QObject* parent)
   : QObject(parent),
-    m_document_ptr(nullptr),
     m_document(document),
-    m_view(m_document),
-    m_size(400, 600)
+    m_listener(new DocumentDocListener(*this))
 {
-  m_formats.resize(16);
-
-  {
-    QFont font{ "Courier" };
-    font.setKerning(false);
-    font.setStyleHint(QFont::TypeWriter);
-    font.setFixedPitch(true);
-    font.setPixelSize(14);
-    setFont(font);
-  }
+  if (m_document)
+    m_document->addListener(m_listener.get());
 }
 
-QTypewriterView::QTypewriterView(std::unique_ptr<typewriter::TextDocument> document, QObject* parent)
+QTypewriterDocument::QTypewriterDocument(std::unique_ptr<typewriter::TextDocument> document, QObject* parent)
   : QObject(parent),
     m_document_ptr(std::move(document)),
     m_document(m_document_ptr.get()),
-    m_view(m_document),
+    m_listener(new DocumentDocListener(*this))
+{
+  if (m_document)
+    m_document->addListener(m_listener.get());
+}
+
+QTypewriterDocument::~QTypewriterDocument()
+{
+  if (m_document)
+    m_document->removeListener(m_listener.get());
+}
+
+typewriter::TextDocument* QTypewriterDocument::document()
+{
+  return m_document;
+}
+
+void QTypewriterDocument::setDocument(typewriter::TextDocument* doc)
+{
+  if (doc == document())
+    return;
+
+  m_document->removeListener(m_listener.get());
+
+  m_document = doc;
+  m_document_ptr.reset();
+
+  m_document->addListener(m_listener.get());
+}
+
+void QTypewriterDocument::setDocument(std::unique_ptr<typewriter::TextDocument> doc)
+{
+  if (doc.get() == document())
+    return;
+
+  m_document->removeListener(m_listener.get());
+
+  m_document = doc.get();
+  m_document_ptr.reset(doc.release());
+
+  m_document->addListener(m_listener.get());
+}
+
+QString QTypewriterDocument::filepath() const
+{
+  return m_filepath;
+}
+
+void QTypewriterDocument::setFilePath(const QString& filepath)
+{
+  if (m_filepath != filepath)
+  {
+    m_filepath = filepath;
+
+    QFile file{ filepath };
+
+    if (file.open(QIODevice::ReadOnly))
+    {
+      QByteArray data = file.readAll();
+
+      typewriter::TextCursor cursor{ document() };
+      cursor.setPosition({ lineCount() + 1, 0 }, typewriter::TextCursor::KeepAnchor);
+      cursor.removeSelectedText();
+      cursor.insertText(data.toStdString());
+    }
+
+    Q_EMIT filepathChanged();
+  }
+}
+
+int QTypewriterDocument::lineCount() const
+{
+  return m_document->lineCount();
+}
+
+void QTypewriterDocument::notifyBlockDestroyed(int line)
+{
+  Q_EMIT blockDestroyed();
+  Q_EMIT lineCountChanged();
+}
+
+void QTypewriterDocument::notifyBlockInserted(const Position& pos, const TextBlock& block)
+{
+  Q_EMIT blockInserted(pos.line);
+  Q_EMIT lineCountChanged();
+}
+
+void QTypewriterDocument::notifyContentsChange(const TextBlock& block, const Position& pos, int charsRemoved, int charsAdded)
+{
+
+}
+
+QTypewriterView::QTypewriterView(QObject* parent)
+  : QObject(parent),
+    m_document(new QTypewriterDocument(this)),
+    m_view(m_document->document()),
+    m_size(400, 600)
+{
+  m_formats.resize(16);
+
+  {
+    QFont font{ "Courier" };
+    font.setKerning(false);
+    font.setStyleHint(QFont::TypeWriter);
+    font.setFixedPitch(true);
+    font.setPixelSize(14);
+    setFont(font);
+  }
+}
+
+QTypewriterView::QTypewriterView(QTypewriterDocument* document, QObject* parent)
+  : QObject(parent),
+    m_document(document),
+    m_view(m_document->document()),
     m_size(400, 600)
 {
   m_formats.resize(16);
@@ -137,37 +256,35 @@ QTypewriterView::~QTypewriterView()
 
 }
 
-typewriter::TextDocument* QTypewriterView::document()
+QTypewriterDocument* QTypewriterView::document()
 {
   return m_document;
 }
 
-void QTypewriterView::setDocument(typewriter::TextDocument* doc)
+void QTypewriterView::setDocument(QObject* doc)
 {
-  if (doc == document())
-    return;
-
-  m_document->removeListener(this);
-
-  m_document = doc;
-  m_view.reset(doc);
-  m_document_ptr.reset();
-
-  m_document->addListener(this);
+  setDocument(qobject_cast<QTypewriterDocument*>(doc));
 }
 
-void QTypewriterView::setDocument(std::unique_ptr<typewriter::TextDocument> doc)
+void QTypewriterView::setDocument(QTypewriterDocument* doc)
 {
-  if (doc.get() == document())
+  if (doc == document() || doc == nullptr)
     return;
 
-  m_document->removeListener(this);
+  if (m_document && m_document->parent() == this)
+  {
+    m_document->document()->removeListener(this);
 
-  m_document = doc.get();
-  m_view.reset(m_document);
-  m_document_ptr.reset(doc.release());
+    if(m_document->parent() == this)
+      m_document->deleteLater();
+  }
 
-  m_document->addListener(this);
+  m_document = doc;
+  m_view.reset(m_document->document());
+
+  m_document->document()->addListener(this);
+
+  Q_EMIT documentChanged();
 }
 
 typewriter::TextView& QTypewriterView::view()

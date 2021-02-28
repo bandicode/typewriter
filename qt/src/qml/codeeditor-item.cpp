@@ -233,14 +233,9 @@ bool QTypewriterGutterItem::find_marker(int line, std::vector<Marker>::const_ite
 }
 
 QTypewriterItem::QTypewriterItem(QQuickItem* parent)
-  : QTypewriterItem(nullptr, parent)
+  : QQuickPaintedItem(parent),
+    m_view(new QTypewriterView(this))
 {
-}
-
-QTypewriterItem::QTypewriterItem(TextDocument* document, QQuickItem* parent)
-  : QQuickPaintedItem(parent)
-{
-  setView(new QTypewriterView(document, this));
   init();
 }
 
@@ -294,7 +289,7 @@ void QTypewriterItem::requestUpdate()
 
 TextDocument* QTypewriterItem::document() const
 {
-  return m_view->document();
+  return m_view->document()->document();
 }
 
 void QTypewriterItem::scroll(int delta)
