@@ -22,45 +22,32 @@
 namespace typewriter
 {
 
-QTypewriterFontMetrics::QTypewriterFontMetrics(const QFont& f)
-{
-  QFontMetrics fm{ f };
-  this->charwidth = fm.averageCharWidth();
-  this->lineheight = fm.height();
-  this->ascent = fm.ascent();
-  this->descent = fm.descent();
-  this->strikeoutpos = fm.strikeOutPos();
-  this->underlinepos = fm.underlinePos();
-}
-
 namespace details
 {
 
-QTypewriterContext::QTypewriterContext(QTypewriter* w, typewriter::TextDocument* doc)
-  : widget(w),
-    document(doc),
-    view(doc)
+QTypewriterContextWidget::QTypewriterContextWidget(QTypewriter* w, typewriter::TextDocument* doc)
+  : QTypewriterContext(doc),
+    widget(w)
 {
   this->formats.resize(16);
 }
 
-QTypewriterVisibleLines QTypewriterContext::visibleLines() const
+int QTypewriterContextWidget::availableHeight() const
 {
-  size_t count = this->widget->viewport().height() / this->metrics.lineheight;
-  return QTypewriterVisibleLines(this->view.lines(), this->first_visible_line, count);
+  return this->widget->viewport().height();
 }
 
-void QTypewriterContext::blockDestroyed(int line, const TextBlock& block)
+void QTypewriterContextWidget::blockDestroyed(int line, const TextBlock& block)
 {
   widget->onBlockDestroyed(line, block);
 }
 
-void QTypewriterContext::blockInserted(const Position& pos, const TextBlock& block)
+void QTypewriterContextWidget::blockInserted(const Position& pos, const TextBlock& block)
 {
   widget->onBlockInserted(pos, block);
 }
 
-void QTypewriterContext::contentsChange(const TextBlock& block, const Position& pos, int charsRemoved, int charsAdded)
+void QTypewriterContextWidget::contentsChange(const TextBlock& block, const Position& pos, int charsRemoved, int charsAdded)
 {
   widget->onContentsChange(block, pos, charsRemoved, charsAdded);
 }
@@ -68,7 +55,7 @@ void QTypewriterContext::contentsChange(const TextBlock& block, const Position& 
 } // namespace details
 
 
-QTypewriterGutter::QTypewriterGutter(std::shared_ptr<details::QTypewriterContext> context, QWidget* parent)
+QTypewriterGutter::QTypewriterGutter(std::shared_ptr<details::QTypewriterContextWidget> context, QWidget* parent)
   : QWidget(parent)
   , d(context)
 {
@@ -260,7 +247,7 @@ QTypewriter::QTypewriter(QWidget* parent)
 
 QTypewriter::QTypewriter(TextDocument* document, QWidget* parent)
   : QWidget(parent),
-    m_context(new details::QTypewriterContext(this, document))
+    m_context(new details::QTypewriterContextWidget(this, document))
 {
   init();
 }
