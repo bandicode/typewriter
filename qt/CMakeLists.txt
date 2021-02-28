@@ -1,6 +1,6 @@
 
 set(CMAKE_AUTOMOC ON)
-find_package(Qt5 COMPONENTS Core Gui Widgets Qml REQUIRED)
+find_package(Qt5 COMPONENTS Core Gui Widgets Quick Qml REQUIRED)
 
 file(GLOB_RECURSE HDR_FILES ${CMAKE_CURRENT_SOURCE_DIR}/include/typewriter/qt/*.h)
 file(GLOB SRC_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp)
@@ -25,5 +25,5 @@ if(TYPEWRITER_BUILD_QT_WIDGET)
 endif()
 
 if(TYPEWRITER_BUILD_QT_QML)
-  target_link_libraries(typewriter-qt Qt5::Qml)
+  target_link_libraries(typewriter-qt Qt5::Quick Qt5::Qml)
 endif()
