@@ -13,7 +13,6 @@
 #include <QWidget>
 
 #include <QColor>
-#include <QPen>
 
 class QScrollBar;
 
