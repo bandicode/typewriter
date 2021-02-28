@@ -156,16 +156,6 @@ protected:
   virtual void onFontChange();
 
   void setupPainter(QPainter* painter);
-  void paint(QPainter* painter);
-  virtual void drawLine(QPainter* painter, const QPoint& offset, const view::Line& line);
-  virtual void drawFoldSymbol(QPainter* painter, const QPoint& offset, int foldid);
-  void drawBlockFragment(QPainter* painter, QPoint offset, const view::Line& line, const view::LineElement& fragment);
-  //void drawFragment(QPainter* painter, QPoint& offset, view::Fragment fragment);
-  void drawText(QPainter* painter, const QPoint& offset, const QString& text, const TextFormat& format);
-  void drawStrikeOut(QPainter* painter, const QPoint& offset, const TextFormat& fmt, int count);
-  void drawUnderline(QPainter* painter, const QPoint& offset, const TextFormat& fmt, int count);
-  void drawWaveUnderline(QPainter* painter, const QPoint& offset, const TextFormat& fmt, int count);
-  void applyFormat(QPainter* painter, const TextFormat& fmt);
 
   const QTypewriterFontMetrics& metrics() const;
 

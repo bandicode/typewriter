@@ -13,6 +13,8 @@
 #include <QColor>
 #include <QPen>
 
+#include <vector>
+
 class QScrollBar;
 
 namespace typewriter
@@ -127,6 +129,59 @@ enum class MarkerType
   Breakposition = 2,
 };
 
+class QTypewriterRenderer
+{
+protected:
+  typewriter::TextView& m_view;
+  QPainter& m_painter;
+  TextFormat m_default_format;
+  const std::vector<TextFormat>& m_formats;
+  QTypewriterFontMetrics m_metrics;
+  QRect m_viewport;
+  int m_hscroll;
+
+public:
+
+  typedef std::list<typewriter::view::Line> list;
+  typedef std::list<typewriter::view::Line>::const_iterator iterator;
+
+  explicit QTypewriterRenderer(details::QTypewriterContext& context, QPainter& p, QRect vp, int hscroll);
+
+  typewriter::TextView& view();
+  const QTypewriterFontMetrics& metrics() const;
+  QPainter& painter();
+  const TextFormat& textFormat(int id) const;
+
+  void paint(iterator begin, iterator end);
+  virtual void drawLine(const QPoint& offset, const view::Line& line);
+  virtual void drawFoldSymbol(const QPoint& offset, int foldid);
+  void drawBlockFragment(QPoint offset, const view::Line& line, const view::LineElement& fragment);
+  void drawText(const QPoint& offset, const QString& text, const TextFormat& format);
+  void drawStrikeOut(const QPoint& offset, const TextFormat& fmt, int count);
+  void drawUnderline(const QPoint& offset, const TextFormat& fmt, int count);
+  void drawWaveUnderline(const QPoint& offset, const TextFormat& fmt, int count);
+  static void applyFormat(QPainter& painter, const TextFormat& fmt);
+};
+
+inline typewriter::TextView& QTypewriterRenderer::view()
+{
+  return m_view;
+}
+
+inline const QTypewriterFontMetrics& QTypewriterRenderer::metrics() const
+{
+  return m_metrics;
+}
+
+inline QPainter& QTypewriterRenderer::painter()
+{
+  return m_painter;
+}
+
+inline const TextFormat& QTypewriterRenderer::textFormat(int id) const
+{
+  return m_formats.at(static_cast<size_t>(id));
+}
 
 } // namespace typewriter
 
