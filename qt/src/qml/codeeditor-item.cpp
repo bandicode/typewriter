@@ -266,6 +266,8 @@ void QTypewriterItem::setView(QTypewriterView* v)
 
   connect(m_view, &QTypewriterView::invalidated, this, &QTypewriterItem::requestUpdate);
 
+  requestUpdate();
+
   Q_EMIT viewChanged();
 }
 

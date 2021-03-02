@@ -840,7 +840,8 @@ TextView::TextView(TextDocument *document)
 
 TextView::~TextView()
 {
-  document()->removeListener(this);
+  if(document())
+    document()->removeListener(this);
 }
 
 void TextView::init()

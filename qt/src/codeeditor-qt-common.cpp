@@ -107,7 +107,7 @@ QTypewriterDocument::QTypewriterDocument(QObject* parent)
   : QObject(parent),
     m_listener(new DocumentDocListener(*this))
 {
-
+  setDocument(std::make_unique<typewriter::TextDocument>());
 }
 
 QTypewriterDocument::QTypewriterDocument(typewriter::TextDocument* document, QObject* parent)
@@ -145,12 +145,14 @@ void QTypewriterDocument::setDocument(typewriter::TextDocument* doc)
   if (doc == document())
     return;
 
-  m_document->removeListener(m_listener.get());
+  if(document())
+    document()->removeListener(m_listener.get());
 
   m_document = doc;
   m_document_ptr.reset();
 
-  m_document->addListener(m_listener.get());
+  if (document())
+    document()->addListener(m_listener.get());
 }
 
 void QTypewriterDocument::setDocument(std::unique_ptr<typewriter::TextDocument> doc)
@@ -158,12 +160,14 @@ void QTypewriterDocument::setDocument(std::unique_ptr<typewriter::TextDocument> 
   if (doc.get() == document())
     return;
 
-  m_document->removeListener(m_listener.get());
+  if (document())
+    document()->removeListener(m_listener.get());
 
   m_document = doc.get();
   m_document_ptr.reset(doc.release());
 
-  m_document->addListener(m_listener.get());
+  if (document())
+    document()->addListener(m_listener.get());
 }
 
 QString QTypewriterDocument::filepath() const
