@@ -377,6 +377,11 @@ void QTypewriterView::setHScroll(int hscroll)
   }
 }
 
+int QTypewriterView::displayedLineCount()
+{
+  return size().height() / metrics().lineheight;
+}
+
 int QTypewriterView::linescroll() const
 {
   return m_linescroll;
@@ -384,7 +389,7 @@ int QTypewriterView::linescroll() const
 
 void QTypewriterView::setLineScroll(int linescroll)
 {
-  linescroll = std::max(0, std::min(linescroll, lineCount()));
+  linescroll = std::max(0, std::min(linescroll, lineCount() - displayedLineCount()));
 
   if (m_linescroll != linescroll)
   {

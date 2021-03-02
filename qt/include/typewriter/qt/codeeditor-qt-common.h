@@ -185,6 +185,8 @@ public:
   int hscroll() const;
   void setHScroll(int hscroll);
 
+  int displayedLineCount();
+
   int linescroll() const;
   void setLineScroll(int linescroll);
 
