@@ -227,6 +227,8 @@ QTypewriterView::QTypewriterView(QObject* parent)
 {
   m_formats.resize(16);
 
+  m_document->document()->addListener(this);
+
   {
     QFont font{ "Courier" };
     font.setKerning(false);
@@ -244,6 +246,11 @@ QTypewriterView::QTypewriterView(QTypewriterDocument* document, QObject* parent)
     m_size(400, 600)
 {
   m_formats.resize(16);
+
+  if (document)
+  {
+    m_document->document()->addListener(this);
+  }
 
   {
     QFont font{ "Courier" };
@@ -289,6 +296,10 @@ void QTypewriterView::setDocument(QTypewriterDocument* doc)
   m_document->document()->addListener(this);
 
   Q_EMIT documentChanged();
+  Q_EMIT lineCountChanged();
+  Q_EMIT columnCountChanged();
+
+  setHScroll(0);
 }
 
 typewriter::TextView& QTypewriterView::view()
@@ -314,6 +325,11 @@ int QTypewriterView::columnCount() const
 int QTypewriterView::effectiveWidth()
 {
   return view().width() * metrics().charwidth;
+}
+
+int QTypewriterView::effectiveHeight()
+{
+  return view().height() * metrics().lineheight;
 }
 
 int QTypewriterView::tabSize() const
