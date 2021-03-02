@@ -474,7 +474,8 @@ void QTypewriter::paintEvent(QPaintEvent* e)
   tr.translate(m_viewport.topLeft().x(), m_viewport.topLeft().y());
   painter.setTransform(tr);
 
-  m_view->paint(&painter);
+  QTypewriterPainterRenderer renderer{ *m_view, painter };
+  typewriter::render(*m_view, renderer);
 }
 
 void QTypewriter::resizeEvent(QResizeEvent* e)

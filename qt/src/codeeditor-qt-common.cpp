@@ -441,28 +441,6 @@ void QTypewriterView::setFormat(int id, TextFormat fmt)
   m_formats[id] = fmt;
 }
 
-void QTypewriterView::paint(QPainter* painter)
-{
-  m_painter = painter;
-
-  painter->setFont(font());
-
-  auto begin = std::next(view().lines().begin(), linescroll());
-
-  auto it = begin;
-  int numline = 1 + size().height() / metrics().lineheight;
-
-  while (numline > 0 && it != view().lines().end())
-  {
-    ++it;
-    --numline;
-  }
-
-  paint(begin, it);
-
-  m_painter = nullptr;
-}
-
 Position QTypewriterView::hitTest(const QPoint& pos) const
 {
   const int line_offset = pos.y() / m_metrics.lineheight;
@@ -638,83 +616,68 @@ void QTypewriterView::contentsChange(const TextBlock& block, const Position& pos
   Q_EMIT invalidated();
 }
 
-QPainter& QTypewriterView::painter()
+details::QTypewriterVisibleLines QTypewriterView::visibleLines() const
 {
-  return *m_painter;
+  size_t count = size().height() / metrics().lineheight;
+  return details::QTypewriterVisibleLines(view().lines(), linescroll(), count);
 }
 
-void QTypewriterView::paint(std::list<typewriter::view::Line>::const_iterator begin, std::list<typewriter::view::Line>::const_iterator end)
+QTypewriterPainterRenderer::QTypewriterPainterRenderer(QTypewriterView& view, QPainter& p)
+  : m_view(view),
+    m_painter(p)
 {
-  painter().setBrush(QBrush(m_default_format.background_color));
+  m_painter.setFont(m_view.font());
+
+  painter().setBrush(QBrush(m_view.defaultTextFormat().background_color));
   painter().setPen(Qt::NoPen);
-  painter().drawRect(QRect(QPoint(0, 0), size()));
-
-  int i = 0;
-  for (auto it = begin; it != end; ++it, ++i)
-  {
-    const int baseline = i * m_metrics.lineheight + m_metrics.ascent;
-    drawLine(QPoint{-m_hscroll, baseline }, *it);
-  }
+  painter().drawRect(QRect(QPoint(0, 0), m_view.size()));
 }
 
-void QTypewriterView::drawLine(const QPoint& offset, const view::Line& line)
+QPainter& QTypewriterPainterRenderer::painter()
 {
-  if (line.elements.empty() || line.elements.front().kind == view::LineElement::LE_Insert)
-    return;
-
-  QPoint pt = offset;
-
-  for (const auto& e : line.elements)
-  {
-    if (e.kind == view::LineElement::LE_LineIndent || e.kind == view::LineElement::LE_CarriageReturn)
-      continue;
-
-    if (e.kind == view::LineElement::LE_Fold)
-    {
-      drawFoldSymbol(pt, e.id);
-      pt.rx() += e.width * m_metrics.charwidth;
-    }
-    else if (e.kind == view::LineElement::LE_BlockFragment)
-    {
-      drawBlockFragment(pt, line, e);
-      pt.rx() += e.width * m_metrics.charwidth;
-    }
-  }
-
+  return m_painter;
 }
 
-void QTypewriterView::drawFoldSymbol(const QPoint& offset, int foldid)
+void QTypewriterPainterRenderer::beginLine(const QPoint& offset, const view::Line& line)
 {
-  /// TODO: 
-  throw std::runtime_error{ "Not implemented" };
+
 }
 
-void QTypewriterView::drawBlockFragment(QPoint offset, const view::Line& line, const view::LineElement& fragment)
+void QTypewriterPainterRenderer::endLine()
 {
-  view::StyledFragments fragments = view().fragments(line, fragment);
 
-  for (auto it = fragments.begin(); it != fragments.end(); it = it.next())
-  {
-    //QString text = QString::fromStdString(fragment.block.text().substr(fragment.begin, fragment.width));
-    //drawText(painter, offset, text, m_context->default_format);
-    QString text = QString::fromStdString(it.text());
-    drawText(offset, text, textFormat(it.format()));
-    offset.rx() += it.length() * metrics().charwidth;
-  }
 }
 
-void QTypewriterView::drawStrikeOut(const QPoint& offset, const TextFormat& fmt, int count)
+void QTypewriterPainterRenderer::drawFoldSymbol(const QPoint& offset, int foldid)
+{
+
+}
+
+void QTypewriterPainterRenderer::drawText(const QPoint& offset, const QString& text, const TextFormat& format)
+{
+  applyFormat(painter(), format);
+
+  painter().drawText(offset, text);
+
+  if (format.strikeout)
+    drawStrikeOut(offset, format, text.length());
+
+  drawUnderline(offset, format, text.length());
+}
+
+void QTypewriterPainterRenderer::drawStrikeOut(const QPoint& offset, const TextFormat& fmt, int count)
 {
   QPen pen{ fmt.strikeout_color };
-  const int penwidth = std::max(1, metrics().ascent / 10);
+  const int penwidth = std::max(1, m_view.metrics().ascent / 10);
   pen.setWidth(penwidth);
 
   painter().setPen(pen);
 
-  painter().drawLine(offset.x(), offset.y() - metrics().strikeoutpos, offset.x() + count * metrics().charwidth, offset.y() - metrics().strikeoutpos);
+  painter().drawLine(offset.x(), offset.y() - m_view.metrics().strikeoutpos, offset.x() + count * m_view.metrics().charwidth, offset.y() - m_view.metrics().strikeoutpos);
+
 }
 
-void QTypewriterView::drawUnderline(const QPoint& offset, const TextFormat& fmt, int count)
+void QTypewriterPainterRenderer::drawUnderline(const QPoint& offset, const TextFormat& fmt, int count)
 {
   if (fmt.underline == TextFormat::NoUnderline)
   {
@@ -728,7 +691,7 @@ void QTypewriterView::drawUnderline(const QPoint& offset, const TextFormat& fmt,
   {
     QPen pen{ fmt.underline_color };
 
-    const int penwidth = std::max(1, metrics().ascent / 10);
+    const int penwidth = std::max(1, m_view.metrics().ascent / 10);
     pen.setWidth(penwidth);
 
     switch (fmt.underline)
@@ -754,40 +717,27 @@ void QTypewriterView::drawUnderline(const QPoint& offset, const TextFormat& fmt,
 
     painter().setPen(pen);
     //painter->drawLine(offset.x(), offset.y() + metrics().underlinepos, offset.x() + count * metrics().charwidth, offset.y() + metrics().underlinepos);
-    painter().drawLine(offset.x(), offset.y() + metrics().descent - penwidth - 1, offset.x() + count * metrics().charwidth, offset.y() + metrics().descent - penwidth - 1);
+    painter().drawLine(offset.x(), offset.y() + m_view.metrics().descent - penwidth - 1, offset.x() + count * m_view.metrics().charwidth, offset.y() + m_view.metrics().descent - penwidth - 1);
   }
 }
 
-
-void QTypewriterView::drawWaveUnderline(const QPoint& offset, const TextFormat& fmt, int count)
+void QTypewriterPainterRenderer::drawWaveUnderline(const QPoint& offset, const TextFormat& fmt, int count)
 {
   /// TODO:
   QPen pen{ fmt.underline_color };
 
-  const int penwidth = std::max(1, metrics().ascent / 10);
+  const int penwidth = std::max(1, m_view.metrics().ascent / 10);
   pen.setWidth(penwidth);
 
   pen.setJoinStyle(Qt::RoundJoin);
 
-  QPixmap pattern = generate_wave_pattern(pen, metrics());
-  QRect rect{ offset.x(), offset.y() + metrics().descent - pattern.height(), count * metrics().charwidth, pattern.height() };
+  QPixmap pattern = generate_wave_pattern(pen, m_view.metrics());
+  QRect rect{ offset.x(), offset.y() + m_view.metrics().descent - pattern.height(), count * m_view.metrics().charwidth, pattern.height() };
 
   fill_with_pattern(painter(), rect, pattern);
 }
 
-void QTypewriterView::drawText(const QPoint& offset, const QString& text, const TextFormat& format)
-{
-  applyFormat(painter(), format);
-
-  painter().drawText(offset, text);
-
-  if (format.strikeout)
-    drawStrikeOut(offset, format, text.length());
-
-  drawUnderline(offset, format, text.length());
-}
-
-void QTypewriterView::applyFormat(QPainter& painter, const TextFormat& fmt)
+void QTypewriterPainterRenderer::applyFormat(QPainter& painter, const TextFormat& fmt)
 {
   QFont f = painter.font();
   f.setBold(fmt.bold);
@@ -795,12 +745,6 @@ void QTypewriterView::applyFormat(QPainter& painter, const TextFormat& fmt)
   painter.setFont(f);
   painter.setPen(QPen(fmt.text_color));
   painter.setBrush(QBrush(fmt.background_color));
-}
-
-details::QTypewriterVisibleLines QTypewriterView::visibleLines() const
-{
-  size_t count = size().height() / metrics().lineheight;
-  return details::QTypewriterVisibleLines(view().lines(), linescroll(), count);
 }
 
 } // namespace typewriter

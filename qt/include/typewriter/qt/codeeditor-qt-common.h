@@ -16,6 +16,7 @@
 
 #include <vector>
 
+class QPainter;
 class QScrollBar;
 
 namespace typewriter
@@ -201,8 +202,6 @@ public:
   const TextFormat& textFormat(int id) const;
   void setFormat(int id, TextFormat fmt);
 
-  void paint(QPainter* painter);
-
   typewriter::Position hitTest(const QPoint& pos) const;
   QPoint map(const typewriter::Position& pos) const;
   bool isVisible(const typewriter::Position& pos) const;
@@ -226,17 +225,6 @@ protected:
   void contentsChange(const TextBlock& block, const Position& pos, int charsRemoved, int charsAdded) override;
 
 protected:
-  QPainter& painter();
- 
-  void paint(std::list<typewriter::view::Line>::const_iterator begin, std::list<typewriter::view::Line>::const_iterator end);
-  virtual void drawLine(const QPoint& offset, const view::Line& line);
-  virtual void drawFoldSymbol(const QPoint& offset, int foldid);
-  void drawBlockFragment(QPoint offset, const view::Line& line, const view::LineElement& fragment);
-  void drawText(const QPoint& offset, const QString& text, const TextFormat& format);
-  void drawStrikeOut(const QPoint& offset, const TextFormat& fmt, int count);
-  void drawUnderline(const QPoint& offset, const TextFormat& fmt, int count);
-  void drawWaveUnderline(const QPoint& offset, const TextFormat& fmt, int count);
-  static void applyFormat(QPainter& painter, const TextFormat& fmt);
 
   details::QTypewriterVisibleLines visibleLines() const;
 
@@ -250,7 +238,104 @@ private:
   int m_hscroll = 0;
   int m_linescroll = 0;
   QFont m_font;
-  QPainter* m_painter = nullptr;
+};
+
+namespace viewrendering
+{
+
+template<typename R>
+void drawBlockFragment(QTypewriterView& view, R&& renderer, QPoint offset, const view::Line& line, const view::LineElement& fragment)
+{
+  view::StyledFragments fragments = view.view().fragments(line, fragment);
+
+  for (auto it = fragments.begin(); it != fragments.end(); it = it.next())
+  {
+    //QString text = QString::fromStdString(fragment.block.text().substr(fragment.begin, fragment.width));
+    //drawText(painter, offset, text, m_context->default_format);
+    QString text = QString::fromStdString(it.text());
+    renderer.drawText(offset, text, view.textFormat(it.format()));
+    offset.rx() += it.length() * view.metrics().charwidth;
+  }
+}
+
+template<typename R>
+void drawLine(QTypewriterView& view, R&& renderer, const QPoint& offset, const view::Line& line)
+{
+  renderer.beginLine(offset, line);
+
+  if (line.elements.empty() || line.elements.front().kind == view::LineElement::LE_Insert)
+  {
+    renderer.endLine();
+    return;
+  }
+
+  QPoint pt = offset;
+
+  for (const auto& e : line.elements)
+  {
+    if (e.kind == view::LineElement::LE_LineIndent || e.kind == view::LineElement::LE_CarriageReturn)
+      continue;
+
+    if (e.kind == view::LineElement::LE_Fold)
+    {
+      renderer.drawFoldSymbol(pt, e.id);
+      pt.rx() += e.width * view.metrics().charwidth;
+    }
+    else if (e.kind == view::LineElement::LE_BlockFragment)
+    {
+      drawBlockFragment(view, std::forward<R>(renderer), pt, line, e);
+      pt.rx() += e.width * view.metrics().charwidth;
+    }
+  }
+
+  renderer.endLine();
+}
+
+} // namespace viewrendering
+
+template<typename R>
+void render(QTypewriterView& view, R&& renderer)
+{
+  auto begin = std::next(view.view().lines().begin(), view.linescroll());
+
+  auto end = begin;
+  int numline = 1 + view.size().height() / view.metrics().lineheight;
+
+  while (numline > 0 && end != view.view().lines().end())
+  {
+    ++end;
+    --numline;
+  }
+
+  int i = 0;
+  for (auto it = begin; it != end; ++it, ++i)
+  {
+    const int baseline = i * view.metrics().lineheight + view.metrics().ascent;
+    viewrendering::drawLine(view, std::forward<R>(renderer), QPoint{ -view.hscroll(), baseline }, *it);
+  }
+}
+
+class QTypewriterPainterRenderer
+{
+private:
+  QTypewriterView& m_view;
+  QPainter& m_painter;
+
+public:
+  QTypewriterPainterRenderer(QTypewriterView& view, QPainter& p);
+
+  QPainter& painter();
+
+  void beginLine(const QPoint& offset, const view::Line& line);
+  void endLine();
+
+  void drawFoldSymbol(const QPoint& offset, int foldid);
+  void drawText(const QPoint& offset, const QString& text, const TextFormat& format);
+  void drawStrikeOut(const QPoint& offset, const TextFormat& fmt, int count);
+  void drawUnderline(const QPoint& offset, const TextFormat& fmt, int count);
+  void drawWaveUnderline(const QPoint& offset, const TextFormat& fmt, int count);
+
+  static void applyFormat(QPainter& painter, const TextFormat& fmt);
 };
 
 } // namespace typewriter

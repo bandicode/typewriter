@@ -349,7 +349,9 @@ void QTypewriterItem::setTextFormat(int id, const TextFormat& fmt)
 void QTypewriterItem::paint(QPainter* painter)
 {
   setupPainter(painter);
-  m_view->paint(painter);
+
+  QTypewriterPainterRenderer renderer{ *m_view, *painter };
+  typewriter::render(*m_view, renderer);
 }
 
 void QTypewriterItem::geometryChanged(const QRectF& newGeometry, const QRectF& oldGeometry)
