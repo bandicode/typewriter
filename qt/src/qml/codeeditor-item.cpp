@@ -20,7 +20,7 @@ namespace typewriter
 {
 
 QTypewriterGutterItem::QTypewriterGutterItem(QQuickItem* parent)
-  : QTypewriterGutterItem(new QTypewriterView(this), parent)
+  : QTypewriterGutterItem(nullptr, parent)
 {
 
 }
@@ -58,11 +58,13 @@ void QTypewriterGutterItem::setView(QTypewriterView* v)
   connect(v, &QTypewriterView::lineCountChanged, this, &QTypewriterGutterItem::minimumWidthChanged);
 
   Q_EMIT viewChanged();
+
+  update();
 }
 
 int QTypewriterGutterItem::minimumWidth() const
 {
-  return d->metrics().charwidth * columnCount() + 4;
+  return d ? d->metrics().charwidth * columnCount() + 4 : 32;
 }
 
 void QTypewriterGutterItem::addMarker(int line, MarkerType m)
@@ -150,6 +152,9 @@ void QTypewriterGutterItem::mousePressEvent(QMouseEvent* e)
 
 void QTypewriterGutterItem::paint(QPainter* painter_ptr)
 {
+  if (!d)
+    return;
+
   QPainter& painter = *painter_ptr;
   painter.setBrush(QBrush(d->defaultTextFormat().background_color));
   painter.setPen(Qt::NoPen);
