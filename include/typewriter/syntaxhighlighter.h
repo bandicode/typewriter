@@ -33,6 +33,9 @@ public:
   void setFormat(int start, int length, int format);
   void setFormat(int line, int start, int length, int format);
 
+  void setBlockFormat(int format);
+  void setBlockFormat(int line, int format);
+
 protected:
   void seekLine(int l);
 };

@@ -64,6 +64,12 @@ struct TextFormat
   QColor underline_color = QColor();
 };
 
+struct BlockFormat
+{
+  QColor background_color = QColor(255, 255, 255);
+};
+
+
 namespace details
 {
 
@@ -202,6 +208,9 @@ public:
   const TextFormat& textFormat(int id) const;
   void setFormat(int id, TextFormat fmt);
 
+  const BlockFormat& blockFormat(int id) const;
+  void setBlockFormat(int id, BlockFormat fmt);
+
   typewriter::Position hitTest(const QPoint& pos) const;
   QPoint map(const typewriter::Position& pos) const;
   bool isVisible(const typewriter::Position& pos) const;
@@ -233,7 +242,8 @@ private:
   typewriter::TextView m_view;
   QTypewriterFontMetrics m_metrics;
   TextFormat m_default_format;
-  std::vector<TextFormat> m_formats;
+  std::vector<TextFormat> m_text_formats;
+  std::vector<BlockFormat> m_block_formats;
   QSize m_size;
   int m_hscroll = 0;
   int m_linescroll = 0;
@@ -336,6 +346,7 @@ public:
   void drawWaveUnderline(const QPoint& offset, const TextFormat& fmt, int count);
 
   static void applyFormat(QPainter& painter, const TextFormat& fmt);
+  static void applyFormat(QPainter& painter, const BlockFormat& fmt);
 };
 
 } // namespace typewriter

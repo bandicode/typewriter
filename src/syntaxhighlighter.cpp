@@ -56,6 +56,7 @@ void SyntaxHighlighter::rehighlight(TextBlock block)
     m_current_line = block.blockNumber();
     m_current_block_view = it->second;
     m_current_block_view->formats.clear();
+    m_current_block_view->blockformat = 0;
   }
 }
 
@@ -111,6 +112,17 @@ void SyntaxHighlighter::seekLine(int l)
     m_current_block_view = it->second;
     m_current_block_view->formats.clear();
   }
+}
+
+void SyntaxHighlighter::setBlockFormat(int format)
+{
+  m_current_block_view->blockformat = format;
+}
+
+void SyntaxHighlighter::setBlockFormat(int line, int format)
+{
+  seekLine(line);
+  setBlockFormat(format);
 }
 
 } // namespace typewriter

@@ -5,6 +5,7 @@
 #include "typewriter/qt/codeeditor-widget.h"
 
 #include "typewriter/textblock.h"
+#include "typewriter/view/block.h"
 #include "typewriter/view/fragment.h"
 
 #include <QKeyEvent>
@@ -225,7 +226,8 @@ QTypewriterView::QTypewriterView(QObject* parent)
     m_view(m_document->document()),
     m_size(400, 600)
 {
-  m_formats.resize(16);
+  m_text_formats.resize(16);
+  m_block_formats.resize(16);
 
   m_document->document()->addListener(this);
 
@@ -245,7 +247,8 @@ QTypewriterView::QTypewriterView(QTypewriterDocument* document, QObject* parent)
     m_view(m_document->document()),
     m_size(400, 600)
 {
-  m_formats.resize(16);
+  m_text_formats.resize(16);
+  m_block_formats.resize(16);
 
   if (document)
   {
@@ -428,17 +431,27 @@ const TextFormat& QTypewriterView::defaultTextFormat() const
 void QTypewriterView::setDefaultTextFormat(TextFormat fmt)
 {
   m_default_format = fmt;
-  m_formats[0] = fmt;
+  m_text_formats[0] = fmt;
 }
 
 const TextFormat& QTypewriterView::textFormat(int id) const
 {
-  return m_formats.at(static_cast<size_t>(id));
+  return m_text_formats.at(static_cast<size_t>(id));
 }
 
 void QTypewriterView::setFormat(int id, TextFormat fmt)
 {
-  m_formats[id] = fmt;
+  m_text_formats[id] = fmt;
+}
+
+const BlockFormat& QTypewriterView::blockFormat(int id) const
+{
+  return m_block_formats.at(static_cast<size_t>(id));
+}
+
+void QTypewriterView::setBlockFormat(int id, BlockFormat fmt)
+{
+  m_block_formats[id] = fmt;
 }
 
 Position QTypewriterView::hitTest(const QPoint& pos) const
@@ -640,7 +653,20 @@ QPainter& QTypewriterPainterRenderer::painter()
 
 void QTypewriterPainterRenderer::beginLine(const QPoint& offset, const view::Line& line)
 {
+  typewriter::TextBlock block = line.block();
+ 
+  auto blockinfo = m_view.view().blocks().find(block.impl());
 
+  if (blockinfo != m_view.view().blocks().end())
+  {
+    if (blockinfo->second->blockformat != 0)
+    {
+      painter().save();
+      applyFormat(painter(), m_view.blockFormat(blockinfo->second->blockformat));
+      painter().drawRect(QRect(offset - QPoint(0, m_view.metrics().ascent), QSize(m_view.size().width(), m_view.metrics().lineheight)));
+      painter().restore();
+    }
+  }
 }
 
 void QTypewriterPainterRenderer::endLine()
@@ -745,6 +771,14 @@ void QTypewriterPainterRenderer::applyFormat(QPainter& painter, const TextFormat
   painter.setFont(f);
   painter.setPen(QPen(fmt.text_color));
   painter.setBrush(QBrush(fmt.background_color));
+}
+
+void QTypewriterPainterRenderer::applyFormat(QPainter& painter, const BlockFormat& fmt)
+{
+  QBrush b = painter.brush();
+  b.setColor(fmt.background_color);
+  painter.setBrush(b);
+  painter.setPen(Qt::NoPen);
 }
 
 } // namespace typewriter

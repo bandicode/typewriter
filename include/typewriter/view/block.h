@@ -26,6 +26,7 @@ class Block
 {
 public:
   TextBlock block;
+  int blockformat = 0;
   std::vector<FormatRange> formats;
   // @TODO: see what to do with these variables
   // int userstate;
