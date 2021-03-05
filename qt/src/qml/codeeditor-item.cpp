@@ -304,9 +304,11 @@ void QTypewriterItem::scroll(int delta)
   if (delta == 0)
     return;
 
+  int ls = m_view->linescroll();
   m_view->setLineScroll(m_view->linescroll() + delta);
 
-  update();
+  if(m_view->linescroll() != ls)
+    update();
 }
 
 void QTypewriterItem::setFirstVisibleLine(int n)
@@ -367,7 +369,9 @@ void QTypewriterItem::geometryChanged(const QRectF& newGeometry, const QRectF& o
 
 void QTypewriterItem::wheelEvent(QWheelEvent* e)
 {
+  int ls = m_view->linescroll();
   scroll(-3 * e->delta() / (15 * 8));
+  e->setAccepted(ls != m_view->linescroll());
 }
 
 void QTypewriterItem::setupPainter(QPainter* painter)
