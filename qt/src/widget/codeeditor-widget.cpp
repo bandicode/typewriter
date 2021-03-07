@@ -1,8 +1,8 @@
-// Copyright (C) 2020 Vincent Chambrin
+// Copyright (C) 2020-2021 Vincent Chambrin
 // This file is part of the typewriter library
 // For conditions of distribution and use, see copyright notice in LICENSE
 
-#include "codeeditor.h"
+#include "typewriter/qt/codeeditor-widget.h"
 
 #include "typewriter/textblock.h"
 #include "typewriter/view/fragment.h"
@@ -12,7 +12,6 @@
 #include <QPaintEvent>
 
 #include <QPainter>
-#include <QPainterPath>
 
 #include <QScrollBar>
 
@@ -22,53 +21,7 @@
 namespace typewriter
 {
 
-QTypewriterFontMetrics::QTypewriterFontMetrics(const QFont& f)
-{
-  QFontMetrics fm{ f };
-  this->charwidth = fm.averageCharWidth();
-  this->lineheight = fm.height();
-  this->ascent = fm.ascent();
-  this->descent = fm.descent();
-  this->strikeoutpos = fm.strikeOutPos();
-  this->underlinepos = fm.underlinePos();
-}
-
-namespace details
-{
-
-QTypewriterContext::QTypewriterContext(QTypewriter* w, typewriter::TextDocument* doc)
-  : widget(w),
-    document(doc),
-    view(doc)
-{
-  this->formats.resize(16);
-}
-
-QTypewriterVisibleLines QTypewriterContext::visibleLines() const
-{
-  size_t count = this->widget->viewport().height() / this->metrics.lineheight;
-  return QTypewriterVisibleLines(this->view.lines(), this->first_visible_line, count);
-}
-
-void QTypewriterContext::blockDestroyed(int line, const TextBlock& block)
-{
-  widget->onBlockDestroyed(line, block);
-}
-
-void QTypewriterContext::blockInserted(const Position& pos, const TextBlock& block)
-{
-  widget->onBlockInserted(pos, block);
-}
-
-void QTypewriterContext::contentsChange(const TextBlock& block, const Position& pos, int charsRemoved, int charsAdded)
-{
-  widget->onContentsChange(block, pos, charsRemoved, charsAdded);
-}
-
-} // namespace details
-
-
-QTypewriterGutter::QTypewriterGutter(std::shared_ptr<details::QTypewriterContext> context, QWidget* parent)
+QTypewriterGutter::QTypewriterGutter(QTypewriterView* context, QWidget* parent)
   : QWidget(parent)
   , d(context)
 {
@@ -141,20 +94,20 @@ void QTypewriterGutter::removeMarker(int line, MarkerType m)
 
 QSize QTypewriterGutter::sizeHint() const
 {
-  return QSize{ d->metrics.charwidth * columnCount() + 4, 66 };
+  return QSize{ d->metrics().charwidth * columnCount() + 4, 66 };
 }
 
 void QTypewriterGutter::mousePressEvent(QMouseEvent* e)
 {
-  if (e->pos().x() <= d->metrics.charwidth)
+  if (e->pos().x() <= d->metrics().charwidth)
   {
-    int line = e->pos().y() / d->metrics.lineheight;
+    int line = e->pos().y() / d->metrics().lineheight;
 
-    auto it = std::next(d->view.lines().begin(), d->first_visible_line);
+    auto it = std::next(d->view().lines().begin(), d->linescroll());
 
-    const int count = 1 + d->widget->viewport().height() / d->metrics.lineheight;
+    const int count = 1 + d->size().height() / d->metrics().lineheight;
 
-    for (int i(0); i < count && it != d->view.lines().end(); ++i, ++it, --line)
+    for (int i(0); i < count && it != d->view().lines().end(); ++i, ++it, --line)
     {
       if (it->elements.empty() || !it->elements.front().block.isValid())
         continue;
@@ -172,23 +125,23 @@ void QTypewriterGutter::paintEvent(QPaintEvent* e)
 {
   QPainter painter{ this };
 
-  painter.setBrush(QBrush(d->default_format.background_color));
+  painter.setBrush(QBrush(d->defaultTextFormat().background_color));
   painter.setPen(Qt::NoPen);
   painter.drawRect(this->rect());
 
-  painter.setFont(d->widget->font());
-  painter.setPen(QPen(d->default_format.text_color));
+  painter.setFont(d->font());
+  painter.setPen(QPen(d->defaultTextFormat().text_color));
 
   painter.drawLine(this->width() - 1, 0, this->width() - 1, this->height());
 
-  auto it = std::next(d->view.lines().begin(), d->first_visible_line);
+  auto it = std::next(d->view().lines().begin(), d->linescroll());
   std::vector<Marker>::const_iterator marker_it = m_markers.cbegin();
 
-  const int count = 1 + d->widget->viewport().height() / d->metrics.lineheight;
+  const int count = 1 + d->size().height() / d->metrics().lineheight;
 
   QString label = QString(" ").repeated(columnCount());
 
-  for (int i(0); i < count && it != d->view.lines().end(); ++i, ++it)
+  for (int i(0); i < count && it != d->view().lines().end(); ++i, ++it)
   {
     if (it->elements.empty() || !it->elements.front().block.isValid())
       continue;
@@ -198,9 +151,9 @@ void QTypewriterGutter::paintEvent(QPaintEvent* e)
     writeNumber(label, blocknum + 1);
 
     if (find_marker(blocknum, marker_it))
-      drawMarkers(painter, QPoint(0, i * d->metrics.lineheight), marker_it->markers);
+      drawMarkers(painter, QPoint(0, i * d->metrics().lineheight), marker_it->markers);
 
-    painter.drawText(QPoint(0, i * d->metrics.lineheight + d->metrics.ascent), label);
+    painter.drawText(QPoint(0, i * d->metrics().lineheight + d->metrics().ascent), label);
   }
 
   // @TODO: draw cursors
@@ -211,19 +164,19 @@ void QTypewriterGutter::drawMarkers(QPainter& painter, QPoint pt, int markers)
   if (markers & static_cast<int>(MarkerType::Breakpoint))
   {
     painter.setBrush(QBrush(Qt::red));
-    painter.drawEllipse(QRect(pt, QSize(d->metrics.charwidth, d->metrics.lineheight)));
+    painter.drawEllipse(QRect(pt, QSize(d->metrics().charwidth, d->metrics().lineheight)));
   }
 
   if (markers & static_cast<int>(MarkerType::Breakposition))
   {
     painter.setBrush(QBrush(Qt::yellow));
-    painter.drawEllipse(QRect(pt, QSize(d->metrics.charwidth, d->metrics.lineheight)));
+    painter.drawEllipse(QRect(pt, QSize(d->metrics().charwidth, d->metrics().lineheight)));
   }
 }
 
 int QTypewriterGutter::columnCount() const
 {
-  int n = d->document->lineCount() + 1;
+  int n = d->document()->lineCount() + 1;
   int result = 1;
   while (n >= 10)
   {
@@ -260,7 +213,7 @@ QTypewriter::QTypewriter(QWidget* parent)
 
 QTypewriter::QTypewriter(TextDocument* document, QWidget* parent)
   : QWidget(parent),
-    m_context(new details::QTypewriterContext(this, document))
+    m_view(new QTypewriterView(new QTypewriterDocument(document, this), this))
 {
   init();
 }
@@ -272,9 +225,7 @@ QTypewriter::~QTypewriter()
 
 void QTypewriter::init()
 {
-  //connect(document(), &TextDocument::blockDestroyed, this, &QTypewriter::onBlockDestroyed);
-  //connect(document(), &TextDocument::blockInserted, this, &QTypewriter::onBlockInserted);
-  //connect(document(), &TextDocument::contentsChange, this, &QTypewriter::onContentsChange);
+  connect(m_view, &QTypewriterView::invalidated, this, qOverload<>(&QTypewriter::update));
 
   m_horizontal_scrollbar = new QScrollBar(Qt::Horizontal, this);
   connect(m_horizontal_scrollbar, SIGNAL(valueChanged(int)), this, SLOT(update()));
@@ -284,7 +235,7 @@ void QTypewriter::init()
   m_vertical_scrollbar->setValue(0);
   connect(m_vertical_scrollbar, &QScrollBar::valueChanged, this, &QTypewriter::setFirstVisibleLine);
 
-  m_gutter = new QTypewriterGutter{ m_context, this };
+  m_gutter = new QTypewriterGutter{ m_view, this };
 
   //d->syntaxHighlighter = new SyntaxHighlighter(this);
 
@@ -300,12 +251,12 @@ void QTypewriter::init()
 
 TextDocument* QTypewriter::document() const
 {
-  return m_context->document;
+  return m_view->document()->document();
 }
 
 TextView& QTypewriter::view() const
 {
-  return m_context->view;
+  return m_view->view();
 }
 
 QTypewriterGutter* QTypewriter::gutter() const
@@ -318,29 +269,16 @@ void QTypewriter::scroll(int delta)
   if (delta == 0)
     return;
 
-  while (delta > 0 && m_context->first_visible_line < document()->lineCount() - 1)
-  {
-    m_context->first_visible_line += 1;
-    delta -= 1;
-  }
+  m_view->setLineScroll(m_view->linescroll() + delta);
 
-  while (delta < 0 && m_context->first_visible_line > 0)
-  {
-    m_context->first_visible_line -= 1;
-    delta += 1;
-  }
-
-  m_vertical_scrollbar->setValue(m_context->first_visible_line);
+  m_vertical_scrollbar->setValue(m_view->linescroll());
 
   update();
 }
 
 void QTypewriter::setFirstVisibleLine(int n)
 {
-  if (m_context->first_visible_line == n)
-    return;
-
-  scroll(n - m_context->first_visible_line);
+  m_view->setLineScroll(n);
 }
 
 void QTypewriter::setTabSize(int n)
@@ -348,14 +286,14 @@ void QTypewriter::setTabSize(int n)
   if (tabSize() == n)
     return;
 
-  m_context->view.setTabSize(n);
+  m_view->setTabSize(n);
 
   update();
 }
 
 int QTypewriter::tabSize() const
 {
-  return m_context->view.tabSize();
+  return m_view->tabSize();
 }
 
 QScrollBar* QTypewriter::horizontalScrollBar() const
@@ -370,7 +308,7 @@ void QTypewriter::setHorizontalScrollBar(QScrollBar* scrollbar)
   m_horizontal_scrollbar->deleteLater();
   m_horizontal_scrollbar = scrollbar;
 
-  m_horizontal_scrollbar->setRange(0, m_context->view.width() * m_context->metrics.charwidth);
+  m_horizontal_scrollbar->setRange(0, m_view->effectiveWidth());
   m_horizontal_scrollbar->setValue(hscroll);
 
   connect(m_horizontal_scrollbar, SIGNAL(valueChanged(int)), this, SLOT(update()));
@@ -402,8 +340,8 @@ void QTypewriter::setVerticalScrollBar(QScrollBar* scrollbar)
 {
   m_vertical_scrollbar->deleteLater();
   m_vertical_scrollbar = scrollbar;
-  m_vertical_scrollbar->setRange(0, document()->lineCount() - 1);
-  m_vertical_scrollbar->setValue(m_context->first_visible_line);
+  m_vertical_scrollbar->setRange(0, m_view->lineCount() - 1);
+  m_vertical_scrollbar->setValue(m_view->linescroll());
   connect(m_vertical_scrollbar, &QScrollBar::valueChanged, this, &QTypewriter::setFirstVisibleLine);
   updateLayout();
 }
@@ -434,148 +372,12 @@ const QRect& QTypewriter::viewport() const
 
 Position QTypewriter::hitTest(const QPoint& pos) const
 {
-  const int line_offset = (pos.y() - viewport().top()) / m_context->metrics.lineheight;
-  const int column_offset = std::round((pos.x() + hscroll() - viewport().left()) / float(m_context->metrics.charwidth));
-
-  auto visible_lines = m_context->visibleLines();
-
-  /* Seek visible line */
-  auto it = std::next(visible_lines.begin(), line_offset);
-
-  /* Take into account tabulations & folds */
-  if (it->elements.size() > 1)
-  {
-    int target_block = 0;
-    int target_col = 0;
-    int counter = column_offset;
-
-    for (auto elem = it->elements.begin(); elem != it->elements.end(); ++elem)
-    {
-      if (elem->kind == view::LineElement::LE_Fold)
-      {
-        counter -= elem->width;
-        if (counter <= 0)
-          return Position{ target_block, target_col };
-      }
-      else
-      {
-        target_block = elem->block.blockNumber();
-        target_col = elem->begin;
-        const int count = elem->width;
-        for (int i(0); i < count; ++i)
-        {
-          // @TODO: handle tab
-          //if (elem.text().at(i) == QChar('\t'))
-          //{
-          //  counter -= tabSize();
-          //  target_col += counter <= -tabSize() / 2 ? 0 : 1;
-          //}
-          //else
-          //{
-            counter -= 1;
-            target_col += 1;
-          //}
-
-          if (counter <= 0)
-            return Position{ target_block, target_col };
-        }
-      }
-    }
-
-    return Position{ target_block, target_col };
-  }
-  else
-  {
-    const std::string& text = it->block().text();
-    int col = 0;
-    for (int i(0), counter(column_offset); i < text.length() && counter > 0; ++i)
-    {
-      // @TODO: handle tabs
-
-      //if (text.at(i) == QChar('\t'))
-      //{
-      //  counter -= tabSize();
-      //  col += counter <= -tabSize() / 2 ? 0 : 1;
-      //}
-      //else
-      //{
-        counter -= 1;
-        col += 1;
-      //}
-    }
-
-    return Position{ it->block().blockNumber(), col };
-  }
-}
-
-static bool map_pos_complex(const Position& pos, const view::Line& line, int& column_offset)
-{
-  for (auto elem = line.elements.begin(); elem != line.elements.end(); ++elem)
-  {
-    if (elem->kind == view::LineElement::LE_BlockFragment)
-    {
-      if (elem->block.blockNumber() != pos.line)
-      {
-        if (elem->begin <= pos.column && pos.column <= elem->begin + elem->width)
-        {
-          int count = pos.column - elem->begin;
-          for (int i(0); i < count; ++i)
-            column_offset += /* @TODO: fixtme : view->ncol(elem.text().at(i)); */ 1;
-          return true;
-        }
-      }
-      else
-      {
-        column_offset += elem->width;
-      }
-    }
-    else
-    {
-      /* @TODO: fixme */
-      //const auto& fold_info = view->folds.at(elem.foldid());
-      //if (fold_info.start() < pos && pos < fold_info.end())
-      //  return true;
-      //column_offset += elem.colcount();
-    }
-  }
-
-  return false;
+  return m_view->hitTest(pos - viewport().topLeft());
 }
 
 QPoint QTypewriter::mapToViewport(const Position& pos) const
 {
-  auto visible_lines = m_context->visibleLines();
-
-  if (pos.line < visible_lines.begin()->block().blockNumber())
-    return QPoint{ 0, -m_context->metrics.descent };
-
-  int line_offset = 0;
-  int column_offset = 0;
-
-  for (auto line = visible_lines.begin(); line_offset < visible_lines.size(); ++line, ++line_offset)
-  {
-    if (line->isInsert())
-      continue;
-
-    if (line->elements.size() > 1)
-    {
-      if (map_pos_complex(pos, *line, column_offset))
-        break;
-    }
-    else
-    {
-      if (line->block().blockNumber() == pos.line)
-      {
-        column_offset = pos.column;
-        break;
-      }
-    }
-  }
-
-  int dy = line_offset * m_context->metrics.lineheight + m_context->metrics.ascent;
-  int dx = column_offset * metrics().charwidth;
-
-  return QPoint{ dx - hscroll(), dy };
+  return m_view->map(pos);
 }
 
 QPoint QTypewriter::map(const Position& pos) const
@@ -585,7 +387,7 @@ QPoint QTypewriter::map(const Position& pos) const
 
 bool QTypewriter::isVisible(const Position& pos) const
 {
-  return viewport().contains(map(pos));
+  return m_view->isVisible(pos);
 }
 
 //void QTypewriter::fold(int line)
@@ -612,24 +414,23 @@ bool QTypewriter::isVisible(const Position& pos) const
 
 const TextFormat& QTypewriter::defaultFormat() const
 {
-  return m_context->default_format;
+  return m_view->defaultTextFormat();
 }
 
 void QTypewriter::setDefaultFormat(const TextFormat& format)
 {
-  m_context->default_format = format;
-  m_context->formats[0] = format;
+  m_view->setDefaultTextFormat(format);
   update();
 }
 
 const TextFormat& QTypewriter::textFormat(int id) const
 {
-  return m_context->formats.at(id);
+  return m_view->textFormat(id);
 }
 
 void QTypewriter::setTextFormat(int id, const TextFormat& fmt)
 {
-  m_context->formats[id] = fmt;
+  m_view->setFormat(id, fmt);
   update();
 }
 
@@ -664,35 +465,17 @@ void QTypewriter::insertFloatingWidget(QWidget* widget, const QPoint& pos)
   throw std::runtime_error{ "Not implemented" };
 }
 
-void QTypewriter::onBlockDestroyed(int line, const TextBlock& block)
-{
-  m_vertical_scrollbar->setMaximum(m_context->view.height());
-  updateLayout();
-
-  // @TODO: check if update is really needed
-  update();
-}
-
-void QTypewriter::onBlockInserted(const Position& pos, const TextBlock& block)
-{
-  m_vertical_scrollbar->setMaximum(m_context->view.height());
-  updateLayout();
-
-  // @TODO: check if update is really needed
-  update();
-}
-
-void QTypewriter::onContentsChange(const TextBlock& block, const Position& pos, int charsRemoved, int charsAdded)
-{
-  // @TODO: check if update is really needed
-  update();
-}
-
 void QTypewriter::paintEvent(QPaintEvent* e)
 {
   QPainter painter{ this };
   setupPainter(&painter);
-  paint(&painter);
+
+  QTransform tr;
+  tr.translate(m_viewport.topLeft().x(), m_viewport.topLeft().y());
+  painter.setTransform(tr);
+
+  QTypewriterPainterRenderer renderer{ *m_view, painter };
+  typewriter::render(*m_view, renderer);
 }
 
 void QTypewriter::resizeEvent(QResizeEvent* e)
@@ -707,7 +490,7 @@ void QTypewriter::wheelEvent(QWheelEvent* e)
 
 void QTypewriter::onFontChange()
 {
-  m_context->metrics = QTypewriterFontMetrics(this->font());
+  update();
 }
 
 void QTypewriter::setupPainter(QPainter* painter)
@@ -716,223 +499,9 @@ void QTypewriter::setupPainter(QPainter* painter)
   painter->setClipRect(m_viewport);
 }
 
-void QTypewriter::paint(QPainter* painter)
-{
-  painter->setBrush(QBrush(m_context->default_format.background_color));
-  painter->setPen(Qt::NoPen);
-  painter->drawRect(m_viewport);
-
-  auto it = std::next(m_context->view.lines().begin(), m_context->first_visible_line);
-
-  const int numline = 1 + m_viewport.height() / m_context->metrics.lineheight;
-
-  for (int i(0); i < numline && it != m_context->view.lines().end(); ++i, ++it)
-  {
-    const int baseline = i * m_context->metrics.lineheight + m_context->metrics.ascent;
-    drawLine(painter, QPoint{ m_viewport.left() - m_horizontal_scrollbar->value(), baseline }, *it);
-  }
-}
-
-void QTypewriter::drawLine(QPainter* painter, const QPoint& offset, const view::Line& line)
-{
-  if (line.elements.empty() || line.elements.front().kind == view::LineElement::LE_Insert)
-    return;
-
-  QPoint pt = offset;
-
-  for (const auto& e : line.elements)
-  {
-    if (e.kind == view::LineElement::LE_LineIndent || e.kind == view::LineElement::LE_CarriageReturn)
-      continue;
-    
-    if (e.kind == view::LineElement::LE_Fold)
-    {
-      drawFoldSymbol(painter, pt, e.id);
-      pt.rx() += e.width * m_context->metrics.charwidth;
-    }
-    else if (e.kind == view::LineElement::LE_BlockFragment)
-    {
-      drawBlockFragment(painter, pt, line, e);
-      pt.rx() += e.width * m_context->metrics.charwidth;
-    }
-  }
-
-}
-
-void QTypewriter::drawFoldSymbol(QPainter* painter, const QPoint& offset, int foldid)
-{
-  /// TODO: 
-  throw std::runtime_error{ "Not implemented" };
-}
-
-void QTypewriter::drawBlockFragment(QPainter* painter, QPoint offset, const view::Line& line, const view::LineElement& fragment)
-{
-  view::StyledFragments fragments = m_context->view.fragments(line, fragment);
-
-  for (auto it = fragments.begin(); it != fragments.end(); it = it.next())
-  {
-    //QString text = QString::fromStdString(fragment.block.text().substr(fragment.begin, fragment.width));
-    //drawText(painter, offset, text, m_context->default_format);
-    QString text = QString::fromStdString(it.text());
-    drawText(painter, offset, text, textFormat(it.format()));
-    offset.rx() += it.length() * m_context->metrics.charwidth;
-  }
-}
-
-void QTypewriter::drawStrikeOut(QPainter* painter, const QPoint& offset, const TextFormat& fmt, int count)
-{
-  QPen pen{ fmt.strikeout_color };
-  const int penwidth = std::max(1, metrics().ascent / 10);
-  pen.setWidth(penwidth);
-
-  painter->setPen(pen);
-
-  painter->drawLine(offset.x(), offset.y() - metrics().strikeoutpos, offset.x() + count * metrics().charwidth, offset.y() - metrics().strikeoutpos);
-}
-
-void QTypewriter::drawUnderline(QPainter* painter, const QPoint& offset, const TextFormat& fmt, int count)
-{
-  if (fmt.underline == TextFormat::NoUnderline)
-  {
-    return;
-  }
-  else if (fmt.underline == TextFormat::WaveUnderline)
-  {
-    drawWaveUnderline(painter, offset, fmt, count);
-  }
-  else
-  {
-    QPen pen{ fmt.underline_color };
-
-    const int penwidth = std::max(1, metrics().ascent / 10);
-    pen.setWidth(penwidth);
-
-    switch (fmt.underline)
-    {
-    case TextFormat::SingleUnderline:
-      pen.setStyle(Qt::SolidLine);
-      break;
-    case TextFormat::DashUnderline:
-      pen.setStyle(Qt::DashLine);
-      break;
-    case TextFormat::DotLine:
-      pen.setStyle(Qt::DotLine);
-      break;
-    case TextFormat::DashDotLine:
-      pen.setStyle(Qt::DashDotLine);
-      break;
-    case TextFormat::DashDotDotLine:
-      pen.setStyle(Qt::DashDotDotLine);
-      break;
-    default:
-      break;
-    }
-
-    painter->setPen(pen);
-    //painter->drawLine(offset.x(), offset.y() + metrics().underlinepos, offset.x() + count * metrics().charwidth, offset.y() + metrics().underlinepos);
-    painter->drawLine(offset.x(), offset.y() + metrics().descent - penwidth - 1, offset.x() + count * metrics().charwidth, offset.y() + metrics().descent - penwidth - 1);
-  }
-}
-
-static QPixmap generate_wave_pattern(const QPen& pen, const QTypewriterFontMetrics& metrics)
-{
-  /// TODO: add cache
-
-  const int pattern_height = metrics.descent * 2 / 3;
-  const int pattern_width = metrics.charwidth * 13 / 16;
-
-  QPixmap img{ pattern_width, pattern_height };
-  img.fill(QColor{ 255, 255, 255, 0 });
-
-  QPainterPath path;
-  path.moveTo(0, img.height() - 1);
-  path.lineTo(pattern_width / 2.f, 0.5);
-  path.lineTo(pattern_width, img.height() - 1);
-
-  QPainter painter{ &img };
-  painter.setPen(pen);
-  painter.setRenderHint(QPainter::Antialiasing);
-  painter.drawPath(path);
-
-  return img;
-}
-
-static void fill_with_pattern(QPainter* painter, const QRect& rect, const QPixmap& pattern)
-{
-  const int y = rect.top();
-
-  int x = rect.left();
-
-  const int full = rect.width() / pattern.width();
-  for (int i(0); i < full; ++i)
-  {
-    painter->drawPixmap(x, y, pattern);
-    x += pattern.width();
-  }
-
-  const int partial_width = rect.width() - pattern.width() * full;
-
-  if (partial_width > 0)
-    painter->drawPixmap(QPoint(x, y), pattern, QRect(0, 0, partial_width, pattern.height()));
-}
-
-void QTypewriter::drawWaveUnderline(QPainter* painter, const QPoint& offset, const TextFormat& fmt, int count)
-{
-  /// TODO:
-  QPen pen{ fmt.underline_color };
-
-  const int penwidth = std::max(1, metrics().ascent / 10);
-  pen.setWidth(penwidth);
-
-  pen.setJoinStyle(Qt::RoundJoin);
-
-  QPixmap pattern = generate_wave_pattern(pen, metrics());
-  QRect rect{ offset.x(), offset.y() + metrics().descent - pattern.height(), count * metrics().charwidth, pattern.height() };
-
-  fill_with_pattern(painter, rect, pattern);
-}
-
-//void QTypewriter::drawFragment(QPainter* painter, QPoint& offset, view::Fragment fragment)
-//{
-//  const TextFormat& fmt = fragment.format();
-//  applyFormat(painter, fmt);
-//
-//  QString text = fragment.text();
-//  painter->drawText(offset, text);
-//
-//  if (fmt.strikeout)
-//    drawStrikeOut(painter, offset, fmt, text.length());
-//
-//  drawUnderline(painter, offset, fragment.format(), text.length());
-//
-//  offset.rx() += text.length() * m_context->metrics.charwidth;
-//}
-
-void QTypewriter::drawText(QPainter* painter, const QPoint& offset, const QString& text, const TextFormat& format)
-{
-  applyFormat(painter, format);
-
-  painter->drawText(offset, text);
-
-  if (format.strikeout)
-    drawStrikeOut(painter, offset, format, text.length());
-
-  drawUnderline(painter, offset, format, text.length());
-}
-
-void QTypewriter::applyFormat(QPainter* painter, const TextFormat& fmt)
-{
-  QFont f = painter->font();
-  f.setBold(fmt.bold);
-  f.setItalic(fmt.italic);
-  painter->setFont(f);
-  painter->setPen(QPen(fmt.text_color));
-  painter->setBrush(QBrush(fmt.background_color));
-}
-
 const QTypewriterFontMetrics& QTypewriter::metrics() const
 {
-  return m_context->metrics;
+  return m_view->metrics();
 }
 
 void QTypewriter::updateLayout()
@@ -970,7 +539,7 @@ void QTypewriter::updateLayout()
   }
   else if (m_hscrollbar_policy == Qt::ScrollBarAsNeeded)
   {
-    if (available_width > m_context->view.width() * m_context->metrics.charwidth)
+    if (available_width > m_view->effectiveWidth())
     {
       hscrollbar_visible = false;
     }
@@ -1015,7 +584,9 @@ void QTypewriter::updateLayout()
   m_viewport = QRect(rect_gutter.right() + 1, 0, rect_vscrollbar.left() - rect_gutter.right() - 1, available_height);
 
   if (vp != m_viewport)
-    update();
+  {
+    m_view->resize(m_viewport.size());
+  }
 }
 
 //const TextCursor & QTypewriter::cursor() const

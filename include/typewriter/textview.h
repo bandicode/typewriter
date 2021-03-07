@@ -29,7 +29,7 @@ class TextViewImpl;
 class TYPEWRITER_API TextView : public TextDocumentListener
 {
 public:
-  explicit TextView(TextDocument *document = nullptr);
+  explicit TextView(TextDocument *document);
   ~TextView();
 
   TextDocument* document() const;

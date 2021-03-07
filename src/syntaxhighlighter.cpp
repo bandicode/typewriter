@@ -56,7 +56,14 @@ void SyntaxHighlighter::rehighlight(TextBlock block)
     m_current_line = block.blockNumber();
     m_current_block_view = it->second;
     m_current_block_view->formats.clear();
+    m_current_block_view->blockformat = 0;
   }
+}
+
+void SyntaxHighlighter::rehighlightNextBlock()
+{
+  seekLine(m_current_line + 1);
+  clear(currentBlock());
 }
 
 void SyntaxHighlighter::setFormat(int start, int length, int format)
@@ -111,6 +118,38 @@ void SyntaxHighlighter::seekLine(int l)
     m_current_block_view = it->second;
     m_current_block_view->formats.clear();
   }
+}
+
+void SyntaxHighlighter::setBlockFormat(int format)
+{
+  m_current_block_view->blockformat = format;
+}
+
+void SyntaxHighlighter::setBlockFormat(int line, int format)
+{
+  seekLine(line);
+  setBlockFormat(format);
+}
+
+int SyntaxHighlighter::blockState() const
+{
+  return m_current_block_view->userstate;
+}
+
+void SyntaxHighlighter::setBlockState(int state)
+{
+  m_current_block_view->userstate = state;
+}
+
+void SyntaxHighlighter::resetBlockState()
+{
+  setBlockState(-1);
+}
+
+int SyntaxHighlighter::previousBlockState() const
+{
+  auto prev = m_current_block_view->prev.lock();
+  return prev ? prev->userstate : -1;
 }
 
 } // namespace typewriter

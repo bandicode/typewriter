@@ -1,11 +1,11 @@
-// Copyright (C) 2018 Vincent Chambrin
-// This file is part of the liblayout project
+// Copyright (C) 2018-2021 Vincent Chambrin
+// This file is part of the typeset project
 // For conditions of distribution and use, see copyright notice in LICENSE
 
 #include <QApplication>
 
 #include "typewriter/textdocument.h"
-#include "../widget/codeeditor.h"
+#include "typewriter/qt/codeeditor-widget.h"
 
 #include <QMouseEvent>
 #include <QVBoxLayout>

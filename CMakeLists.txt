@@ -38,13 +38,14 @@ foreach(_source IN ITEMS ${HDR_TYPEWRITER_FILES} ${SRC_TYPEWRITER_FILES})
 endforeach()
 
 ##################################################################
-###### Qt widget
+###### Qt 
 ##################################################################
 
 set(TYPEWRITER_BUILD_QT_WIDGET OFF CACHE BOOL "whether to build the 'typewriter' Qt widget")
+set(TYPEWRITER_BUILD_QT_QML OFF CACHE BOOL "whether to build the 'typewriter' Qt QML")
 
-if (TYPEWRITER_BUILD_QT_WIDGET)
-  add_subdirectory(widget)
+if (TYPEWRITER_BUILD_QT_WIDGET OR TYPEWRITER_BUILD_QT_QML)
+  add_subdirectory(qt)
 endif()
 
 ##################################################################

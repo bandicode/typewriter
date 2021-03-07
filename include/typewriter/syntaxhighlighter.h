@@ -29,9 +29,18 @@ public:
   TextBlock currentBlock() const;
   int currentLine() const;
   void rehighlight(TextBlock block);
+  void rehighlightNextBlock();
 
   void setFormat(int start, int length, int format);
   void setFormat(int line, int start, int length, int format);
+
+  void setBlockFormat(int format);
+  void setBlockFormat(int line, int format);
+
+  int blockState() const;
+  void setBlockState(int state);
+  void resetBlockState();
+  int previousBlockState() const;
 
 protected:
   void seekLine(int l);
