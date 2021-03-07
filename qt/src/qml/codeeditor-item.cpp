@@ -163,7 +163,7 @@ void QTypewriterGutterItem::paint(QPainter* painter_ptr)
   painter.setFont(d->font());
   painter.setPen(QPen(d->defaultTextFormat().text_color));
 
-  painter.drawLine(this->width() - 1, 0, this->width() - 1, this->height());
+  //painter.drawLine(this->width() - 1, 0, this->width() - 1, this->height());
 
   auto it = std::next(d->view().lines().begin(), d->linescroll());
   std::vector<Marker>::const_iterator marker_it = m_markers.cbegin();
