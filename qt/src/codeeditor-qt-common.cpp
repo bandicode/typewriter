@@ -8,6 +8,8 @@
 #include "typewriter/view/block.h"
 #include "typewriter/view/fragment.h"
 
+#include <QApplication>
+
 #include <QKeyEvent>
 #include <QMouseEvent>
 #include <QPaintEvent>
@@ -220,6 +222,19 @@ void QTypewriterDocument::notifyContentsChange(const TextBlock& block, const Pos
 
 }
 
+class HighlightEvent : public QEvent
+{
+public:
+  
+  static constexpr QEvent::Type Id = static_cast<QEvent::Type>(QEvent::User + 66);
+  
+  HighlightEvent()
+    : QEvent(Id)
+  {
+
+  }
+};
+
 QTypewriterView::QTypewriterView(QObject* parent)
   : QObject(parent),
     m_document(new QTypewriterDocument(this)),
@@ -398,6 +413,7 @@ void QTypewriterView::setLineScroll(int linescroll)
   {
     m_linescroll = linescroll;
     Q_EMIT linescrollChanged();
+    // @TODO: highlight if needed
     Q_EMIT invalidated();
   }
 }
@@ -605,6 +621,43 @@ bool QTypewriterView::isVisible(const Position& pos) const
   return QRect(QPoint(0, 0), size()).contains(map(pos));
 }
 
+void QTypewriterView::install(QTypewriterSyntaxHighlighter* highlighter)
+{
+  if (m_syntax_highlighter == highlighter)
+    return;
+
+  if (m_syntax_highlighter && m_syntax_highlighter->parent() == this)
+    m_syntax_highlighter->deleteLater();
+
+  m_syntax_highlighter = highlighter;
+
+  if (m_syntax_highlighter)
+  {
+    m_syntax_highlighter->setView(this);
+    QApplication::postEvent(this, new HighlightEvent());
+  }
+}
+
+void QTypewriterView::uninstallSyntaxHighlighter()
+{
+  if (m_syntax_highlighter && m_syntax_highlighter->parent() == this)
+    m_syntax_highlighter->deleteLater();
+
+  m_syntax_highlighter = nullptr;
+}
+
+bool QTypewriterView::event(QEvent* ev)
+{
+  if (ev->type() == HighlightEvent::Id)
+  {
+    highlightView();
+    ev->accept();
+    return true;
+  }
+
+  return QObject::event(ev);
+}
+
 void QTypewriterView::blockDestroyed(int line, const TextBlock& block)
 {
   Q_EMIT blockDestroyed();
@@ -625,6 +678,13 @@ void QTypewriterView::blockInserted(const Position& pos, const TextBlock& block)
 
 void QTypewriterView::contentsChange(const TextBlock& block, const Position& pos, int charsRemoved, int charsAdded)
 {
+  // @TODO: be less agressive
+  if (m_syntax_highlighter) 
+  {
+    m_syntax_highlighter->m_last_highlighted_line = pos.line - 1;
+    highlightView();
+  }
+
   // @TODO: check if update is really needed
   Q_EMIT invalidated();
 }
@@ -634,6 +694,120 @@ details::QTypewriterVisibleLines QTypewriterView::visibleLines() const
   size_t count = size().height() / metrics().lineheight;
   return details::QTypewriterVisibleLines(view().lines(), linescroll(), count);
 }
+
+void QTypewriterView::highlightView()
+{
+  auto lines = visibleLines();
+
+  typewriter::TextBlock lastblock = std::prev(lines.end())->block();
+  int lastnum = lastblock.blockNumber();
+
+  if (m_syntax_highlighter->m_last_highlighted_line > lastnum)
+    return;
+
+  typewriter::TextBlock firstblock = lines.begin()->block();
+  int firstnum = firstblock.blockNumber();
+
+  if (m_syntax_highlighter->m_last_highlighted_line != -1)
+  {
+    if (m_syntax_highlighter->m_last_highlighted_line > firstnum)
+      firstblock = typewriter::next(firstblock, m_syntax_highlighter->m_last_highlighted_line - firstnum);
+    else
+      firstblock = typewriter::prev(firstblock, firstnum - m_syntax_highlighter->m_last_highlighted_line);
+  }
+
+  m_syntax_highlighter->startHighlight(firstblock);
+  const std::string& txt = m_syntax_highlighter->currentBlock().text();
+  m_syntax_highlighter->highlightBlock(txt);
+
+  while (m_syntax_highlighter->currentBlock() != lastblock)
+  {
+    m_syntax_highlighter->highlightNextBlock();
+    m_syntax_highlighter->highlightBlock(m_syntax_highlighter->currentBlock().text());
+  }
+
+  m_syntax_highlighter->endHighlight();
+
+  m_syntax_highlighter->m_last_highlighted_line = lastnum;
+}
+
+QTypewriterSyntaxHighlighter::QTypewriterSyntaxHighlighter(QObject* parent)
+  : QObject(parent)
+{
+
+}
+
+QTypewriterSyntaxHighlighter::QTypewriterSyntaxHighlighter(QTypewriterView* view, QObject* parent)
+  : QObject(parent)
+{
+  if (view)
+    view->install(this);
+}
+
+QTypewriterSyntaxHighlighter::~QTypewriterSyntaxHighlighter()
+{
+
+}
+
+QTypewriterView* QTypewriterSyntaxHighlighter::view() const
+{
+  return m_view;
+}
+
+QTypewriterDocument* QTypewriterSyntaxHighlighter::document() const
+{
+  return m_view ? m_view->document() : nullptr;
+}
+
+typewriter::TextBlock QTypewriterSyntaxHighlighter::currentBlock() const
+{
+  return m_impl->currentBlock();
+}
+
+void QTypewriterSyntaxHighlighter::setFormat(int start, int count, int formatId)
+{
+  m_impl->setFormat(start, count, formatId);
+}
+
+int QTypewriterSyntaxHighlighter::previousBlockState() const
+{
+  return m_impl->previousBlockState();
+}
+
+void QTypewriterSyntaxHighlighter::setCurrentBlockState(int state)
+{
+  m_impl->setBlockState(state);
+}
+
+void QTypewriterSyntaxHighlighter::setView(QTypewriterView* view)
+{
+  if (view == nullptr && m_view)
+  {
+    m_impl.reset();
+    m_view = nullptr;
+  }
+  else if (m_view == nullptr && view)
+  {
+    m_view = view;
+  }
+}
+
+void QTypewriterSyntaxHighlighter::startHighlight(typewriter::TextBlock block)
+{
+  m_impl = std::make_unique<typewriter::SyntaxHighlighter>(m_view->view());
+  m_impl->rehighlight(block);
+}
+
+void QTypewriterSyntaxHighlighter::highlightNextBlock()
+{
+  m_impl->rehighlightNextBlock();
+}
+
+void QTypewriterSyntaxHighlighter::endHighlight()
+{
+  m_impl.reset(nullptr);
+}
+
 
 QTypewriterPainterRenderer::QTypewriterPainterRenderer(QTypewriterView& view, QPainter& p)
   : m_view(view),

@@ -27,9 +27,9 @@ class Block
 public:
   TextBlock block;
   int blockformat = 0;
+  int userstate = -1;
   std::vector<FormatRange> formats;
   // @TODO: see what to do with these variables
-  // int userstate;
   // int revision;
   std::weak_ptr<Block> prev;
   std::weak_ptr<Block> next;

@@ -60,6 +60,12 @@ void SyntaxHighlighter::rehighlight(TextBlock block)
   }
 }
 
+void SyntaxHighlighter::rehighlightNextBlock()
+{
+  seekLine(m_current_line + 1);
+  clear(currentBlock());
+}
+
 void SyntaxHighlighter::setFormat(int start, int length, int format)
 {
   view::FormatRange fr;
@@ -123,6 +129,27 @@ void SyntaxHighlighter::setBlockFormat(int line, int format)
 {
   seekLine(line);
   setBlockFormat(format);
+}
+
+int SyntaxHighlighter::blockState() const
+{
+  return m_current_block_view->userstate;
+}
+
+void SyntaxHighlighter::setBlockState(int state)
+{
+  m_current_block_view->userstate = state;
+}
+
+void SyntaxHighlighter::resetBlockState()
+{
+  setBlockState(-1);
+}
+
+int SyntaxHighlighter::previousBlockState() const
+{
+  auto prev = m_current_block_view->prev.lock();
+  return prev ? prev->userstate : -1;
 }
 
 } // namespace typewriter

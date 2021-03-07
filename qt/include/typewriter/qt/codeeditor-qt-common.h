@@ -7,6 +7,7 @@
 
 #include "typewriter/contributor.h"
 #include "typewriter/textview.h"
+#include "typewriter/syntaxhighlighter.h"
 
 #include <QObject>
 
@@ -153,6 +154,8 @@ private:
   QString m_filepath;
 };
 
+class QTypewriterSyntaxHighlighter;
+
 class QTypewriterView : public QObject, public typewriter::TextDocumentListener
 {
   Q_OBJECT
@@ -215,6 +218,9 @@ public:
   QPoint map(const typewriter::Position& pos) const;
   bool isVisible(const typewriter::Position& pos) const;
 
+  void install(QTypewriterSyntaxHighlighter* highlighter);
+  void uninstallSyntaxHighlighter();
+
 Q_SIGNALS:
   void documentChanged();
   void lineCountChanged();
@@ -229,6 +235,9 @@ Q_SIGNALS:
   void invalidated();
 
 protected:
+  bool event(QEvent* ev) override;
+
+protected:
   void blockDestroyed(int line, const TextBlock& block) override;
   void blockInserted(const Position& pos, const TextBlock& block) override;
   void contentsChange(const TextBlock& block, const Position& pos, int charsRemoved, int charsAdded) override;
@@ -236,6 +245,8 @@ protected:
 protected:
 
   details::QTypewriterVisibleLines visibleLines() const;
+
+  void highlightView();
 
 private:
   QTypewriterDocument* m_document = nullptr;
@@ -248,6 +259,40 @@ private:
   int m_hscroll = 0;
   int m_linescroll = 0;
   QFont m_font;
+  QTypewriterSyntaxHighlighter* m_syntax_highlighter = nullptr;
+};
+
+class QTypewriterSyntaxHighlighter : public QObject
+{
+  Q_OBJECT
+public:
+  explicit QTypewriterSyntaxHighlighter(QObject* parent = nullptr); 
+  QTypewriterSyntaxHighlighter(QTypewriterView* view, QObject* parent = nullptr);
+  ~QTypewriterSyntaxHighlighter();
+
+  QTypewriterView* view() const;
+  QTypewriterDocument* document() const;
+
+protected:
+  typewriter::TextBlock currentBlock() const;
+
+  virtual void highlightBlock(const std::string& text) = 0;
+  void setFormat(int start, int count, int formatId);
+
+  int previousBlockState() const;
+  void setCurrentBlockState(int state);
+
+private:
+  friend class QTypewriterView;
+  void setView(QTypewriterView* view);
+  void startHighlight(typewriter::TextBlock block);
+  void highlightNextBlock();
+  void endHighlight();
+
+private:
+  QTypewriterView* m_view = nullptr;
+  std::unique_ptr<typewriter::SyntaxHighlighter> m_impl;
+  int m_last_highlighted_line = -1;
 };
 
 namespace viewrendering
