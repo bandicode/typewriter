@@ -20,7 +20,7 @@ namespace typewriter
 {
 class QTypewriter;
 
-class QTypewriterGutter : public QWidget
+class TYPEWRITER_QAPI QTypewriterGutter : public QWidget
 {
   Q_OBJECT
 public:
@@ -55,7 +55,7 @@ private:
   std::vector<Marker> m_markers;
 };
 
-class TYPEWRITER_API QTypewriter : public QWidget
+class TYPEWRITER_QAPI QTypewriter : public QWidget
 {
   Q_OBJECT
 public:
