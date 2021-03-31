@@ -53,6 +53,9 @@ protected:
   bool find_marker(int line, std::vector<Marker>::const_iterator& it) const;
 
 private:
+  void requestUpdate();
+
+private:
   QTypewriterView* d = nullptr;
   std::vector<Marker> m_markers;
 };
