@@ -59,6 +59,7 @@ void QTypewriterGutterItem::setView(QTypewriterView* v)
   connect(v, &QTypewriterView::invalidated, this, &QTypewriterGutterItem::requestUpdate);
 
   Q_EMIT viewChanged();
+  Q_EMIT minimumWidthChanged();
 
   update();
 }
