@@ -412,8 +412,10 @@ void QTypewriterView::setLineScroll(int linescroll)
   if (m_linescroll != linescroll)
   {
     m_linescroll = linescroll;
+
+    scheduleHighlight();
+
     Q_EMIT linescrollChanged();
-    // @TODO: highlight if needed
     Q_EMIT invalidated();
   }
 }
@@ -634,7 +636,7 @@ void QTypewriterView::install(QTypewriterSyntaxHighlighter* highlighter)
   if (m_syntax_highlighter)
   {
     m_syntax_highlighter->setView(this);
-    QApplication::postEvent(this, new HighlightEvent());
+    scheduleHighlight();
   }
 }
 
@@ -695,8 +697,19 @@ details::QTypewriterVisibleLines QTypewriterView::visibleLines() const
   return details::QTypewriterVisibleLines(view().lines(), linescroll(), count);
 }
 
+void QTypewriterView::scheduleHighlight()
+{
+  if (!m_highlight_scheduled)
+  {
+    QApplication::postEvent(this, new HighlightEvent());
+    m_highlight_scheduled = true;
+  }
+}
+
 void QTypewriterView::highlightView()
 {
+  m_highlight_scheduled = false;
+
   auto lines = visibleLines();
 
   typewriter::TextBlock lastblock = std::prev(lines.end())->block();
@@ -729,6 +742,8 @@ void QTypewriterView::highlightView()
   m_syntax_highlighter->endHighlight();
 
   m_syntax_highlighter->m_last_highlighted_line = lastnum;
+
+  Q_EMIT invalidated();
 }
 
 QTypewriterSyntaxHighlighter::QTypewriterSyntaxHighlighter(QObject* parent)

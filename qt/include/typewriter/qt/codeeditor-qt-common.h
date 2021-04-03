@@ -248,6 +248,7 @@ protected:
 
   details::QTypewriterVisibleLines visibleLines() const;
 
+  void scheduleHighlight();
   void highlightView();
 
 private:
@@ -262,6 +263,7 @@ private:
   int m_linescroll = 0;
   QFont m_font;
   QTypewriterSyntaxHighlighter* m_syntax_highlighter = nullptr;
+  bool m_highlight_scheduled = false;
 };
 
 class TYPEWRITER_QAPI QTypewriterSyntaxHighlighter : public QObject
