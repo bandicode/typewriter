@@ -5,6 +5,8 @@
 #ifndef TYPEWRITER_QTYPEWRITER_COMMON_H
 #define TYPEWRITER_QTYPEWRITER_COMMON_H
 
+#include "typewriter/qt/codeeditor-qt-defs.h"
+
 #include "typewriter/contributor.h"
 #include "typewriter/textview.h"
 #include "typewriter/syntaxhighlighter.h"
@@ -117,7 +119,7 @@ enum class MarkerType
   Breakposition = 2,
 };
 
-class QTypewriterDocument : public QObject
+class TYPEWRITER_QAPI QTypewriterDocument : public QObject
 {
   Q_OBJECT
   Q_PROPERTY(QString filepath READ filepath WRITE setFilePath NOTIFY filepathChanged)
@@ -156,7 +158,7 @@ private:
 
 class QTypewriterSyntaxHighlighter;
 
-class QTypewriterView : public QObject, public typewriter::TextDocumentListener
+class TYPEWRITER_QAPI QTypewriterView : public QObject, public typewriter::TextDocumentListener
 {
   Q_OBJECT
   Q_PROPERTY(QObject* document READ document WRITE setDocument NOTIFY documentChanged)
@@ -246,6 +248,7 @@ protected:
 
   details::QTypewriterVisibleLines visibleLines() const;
 
+  void scheduleHighlight();
   void highlightView();
 
 private:
@@ -260,9 +263,10 @@ private:
   int m_linescroll = 0;
   QFont m_font;
   QTypewriterSyntaxHighlighter* m_syntax_highlighter = nullptr;
+  bool m_highlight_scheduled = false;
 };
 
-class QTypewriterSyntaxHighlighter : public QObject
+class TYPEWRITER_QAPI QTypewriterSyntaxHighlighter : public QObject
 {
   Q_OBJECT
 public:
@@ -370,7 +374,7 @@ void render(QTypewriterView& view, R&& renderer)
   }
 }
 
-class QTypewriterPainterRenderer
+class TYPEWRITER_QAPI QTypewriterPainterRenderer
 {
 private:
   QTypewriterView& m_view;

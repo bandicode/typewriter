@@ -56,8 +56,10 @@ void QTypewriterGutterItem::setView(QTypewriterView* v)
 
   d = v;
   connect(v, &QTypewriterView::lineCountChanged, this, &QTypewriterGutterItem::minimumWidthChanged);
+  connect(v, &QTypewriterView::invalidated, this, &QTypewriterGutterItem::requestUpdate);
 
   Q_EMIT viewChanged();
+  Q_EMIT minimumWidthChanged();
 
   update();
 }
@@ -236,6 +238,12 @@ bool QTypewriterGutterItem::find_marker(int line, std::vector<Marker>::const_ite
 
   return it != m_markers.end() && it->line == line;
 }
+
+void QTypewriterGutterItem::requestUpdate()
+{
+  update();
+}
+
 
 QTypewriterItem::QTypewriterItem(QQuickItem* parent)
   : QQuickPaintedItem(parent),

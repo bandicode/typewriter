@@ -12,7 +12,7 @@
 namespace typewriter
 {
 
-class QTypewriterGutterItem : public QQuickPaintedItem
+class TYPEWRITER_QAPI QTypewriterGutterItem : public QQuickPaintedItem
 {
   Q_OBJECT
   Q_PROPERTY(QObject* view READ view WRITE setView NOTIFY viewChanged)
@@ -53,11 +53,14 @@ protected:
   bool find_marker(int line, std::vector<Marker>::const_iterator& it) const;
 
 private:
+  void requestUpdate();
+
+private:
   QTypewriterView* d = nullptr;
   std::vector<Marker> m_markers;
 };
 
-class QTypewriterItem : public QQuickPaintedItem
+class TYPEWRITER_QAPI QTypewriterItem : public QQuickPaintedItem
 {
   Q_OBJECT
   Q_PROPERTY(QObject* view READ view WRITE setView NOTIFY viewChanged)
