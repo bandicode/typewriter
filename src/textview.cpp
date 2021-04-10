@@ -506,6 +506,7 @@ void Composer::relayoutBlock()
       continue;
     }
 
+    // @TODO @Speed this is expensive as currentWith() calls advance()
     int cur_width = iterator.currentWidth();
 
     if (current_line_width + cur_width <= cpl)

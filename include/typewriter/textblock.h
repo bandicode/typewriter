@@ -102,7 +102,7 @@ public:
 
   void seekColumn(int c)
   {
-    if (c > m_column)
+    if (c < m_column)
       *this = block().begin();
 
     while (!atEnd() && m_column != c)
