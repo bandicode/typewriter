@@ -13,6 +13,8 @@ endif()
 
 if(TYPEWRITER_BUILD_QT_QML)
   list(APPEND SRC_FILES ${QML_SRC_FILES})
+else()
+  list(REMOVE_ITEM HDR_FILES "${CMAKE_CURRENT_SOURCE_DIR}/include/typewriter/qt/codeeditor-item.h")
 endif()
 
 if(NOT DEFINED CACHE{TYPEWRITER_BUILD_QT_QML_LIB_STATIC})

@@ -27,6 +27,9 @@ public:
   QTypewriterGutter(QTypewriterView* context, QWidget* parent);
   ~QTypewriterGutter();
 
+  QTypewriterView* view() const;
+  void setView(QTypewriterView* v);
+
   void addMarker(int line, MarkerType m);
   void clearMarkers();
   void removeMarkers(int line);
@@ -60,11 +63,14 @@ class TYPEWRITER_QAPI QTypewriter : public QWidget
   Q_OBJECT
 public:
   explicit QTypewriter(QWidget* parent = nullptr);
-  explicit QTypewriter(TextDocument *doc, QWidget* parent = nullptr);
+  explicit QTypewriter(QTypewriterView* view, QWidget* parent = nullptr);
+  explicit QTypewriter(QTypewriterDocument* doc, QWidget* parent = nullptr);
   ~QTypewriter();
 
-  TextDocument* document() const;
-  TextView& view() const;
+  QTypewriterView* view() const;
+  void setView(QTypewriterView* v);
+
+  QTypewriterDocument* document() const;
 
   QTypewriterGutter* gutter() const;
 
@@ -120,6 +126,9 @@ public:
   //const QMap<LineRange, QWidget*>& insertedWidgets() const;
   void insertFloatingWidget(QWidget* widget, const QPoint& pos);
 
+Q_SIGNALS:
+  void viewChanged();
+
 protected:
   bool event(QEvent* ev) override;
   void paintEvent(QPaintEvent* e) override;
@@ -133,6 +142,7 @@ protected:
   const QTypewriterFontMetrics& metrics() const;
 
 protected:
+  void updateScrollBarsValues();
   void updateLayout();
 
 private:

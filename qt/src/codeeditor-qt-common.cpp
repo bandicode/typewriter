@@ -680,11 +680,10 @@ void QTypewriterView::blockInserted(const Position& pos, const TextBlock& block)
 
 void QTypewriterView::contentsChange(const TextBlock& block, const Position& pos, int charsRemoved, int charsAdded)
 {
-  // @TODO: be less agressive
   if (m_syntax_highlighter) 
   {
-    m_syntax_highlighter->m_last_highlighted_line = pos.line - 1;
-    highlightView();
+    m_syntax_highlighter->m_last_highlighted_line = std::min(pos.line - 1, m_syntax_highlighter->m_last_highlighted_line);
+    scheduleHighlight();
   }
 
   // @TODO: check if update is really needed
@@ -709,6 +708,9 @@ void QTypewriterView::scheduleHighlight()
 void QTypewriterView::highlightView()
 {
   m_highlight_scheduled = false;
+
+  if (!m_syntax_highlighter)
+    return;
 
   auto lines = visibleLines();
 

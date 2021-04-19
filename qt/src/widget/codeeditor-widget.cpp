@@ -33,6 +33,20 @@ QTypewriterGutter::~QTypewriterGutter()
 
 }
 
+QTypewriterView* QTypewriterGutter::view() const
+{
+  return d;
+}
+
+void QTypewriterGutter::setView(QTypewriterView* v)
+{
+  if (d != v)
+  {
+    d = v;
+    update();
+  }
+}
+
 void QTypewriterGutter::addMarker(int line, MarkerType m)
 {
   auto it = std::find_if(m_markers.begin(), m_markers.end(), [line](const Marker& m) {
@@ -207,16 +221,28 @@ bool QTypewriterGutter::find_marker(int line, std::vector<Marker>::const_iterato
 }
 
 QTypewriter::QTypewriter(QWidget* parent)
-  : QTypewriter(nullptr, parent)
+  : QWidget(parent),
+    m_view(nullptr)
 {
+  m_view = new QTypewriterView(this);
+  init();
 }
 
-QTypewriter::QTypewriter(TextDocument* document, QWidget* parent)
+QTypewriter::QTypewriter(QTypewriterView* view, QWidget* parent)
   : QWidget(parent),
-    m_view(new QTypewriterView(new QTypewriterDocument(document, this), this))
+    m_view(view)
 {
   init();
 }
+
+QTypewriter::QTypewriter(QTypewriterDocument* document, QWidget* parent)
+  : QWidget(parent),
+    m_view(nullptr)
+{
+  m_view = new QTypewriterView(document, this);
+  init();
+}
+
 
 QTypewriter::~QTypewriter()
 {
@@ -226,6 +252,7 @@ QTypewriter::~QTypewriter()
 void QTypewriter::init()
 {
   connect(m_view, &QTypewriterView::invalidated, this, qOverload<>(&QTypewriter::update));
+  connect(m_view, &QTypewriterView::lineCountChanged, this, &QTypewriter::updateScrollBarsValues);
 
   m_horizontal_scrollbar = new QScrollBar(Qt::Horizontal, this);
   connect(m_horizontal_scrollbar, SIGNAL(valueChanged(int)), this, SLOT(update()));
@@ -249,14 +276,40 @@ void QTypewriter::init()
   }
 }
 
-TextDocument* QTypewriter::document() const
+QTypewriterView* QTypewriter::view() const
 {
-  return m_view->document()->document();
+  return m_view;
 }
 
-TextView& QTypewriter::view() const
+void QTypewriter::setView(QTypewriterView* v)
 {
-  return m_view->view();
+  if (m_view != v && v != nullptr)
+  {
+    if (m_view)
+    {
+      connect(m_view, nullptr, this, nullptr);
+
+      if(m_view->parent() == this)
+        m_view->deleteLater();
+    }
+
+    m_view = v;
+
+    connect(m_view, &QTypewriterView::invalidated, this, qOverload<>(&QTypewriter::update));
+    connect(m_view, &QTypewriterView::lineCountChanged, this, &QTypewriter::updateScrollBarsValues);
+
+    if (m_gutter)
+      m_gutter->setView(v);
+
+    Q_EMIT viewChanged();
+
+    update();
+  }
+}
+
+QTypewriterDocument* QTypewriter::document() const
+{
+  return m_view->document();
 }
 
 QTypewriterGutter* QTypewriter::gutter() const
@@ -502,6 +555,16 @@ void QTypewriter::setupPainter(QPainter* painter)
 const QTypewriterFontMetrics& QTypewriter::metrics() const
 {
   return m_view->metrics();
+}
+
+void QTypewriter::updateScrollBarsValues()
+{
+  if (m_vertical_scrollbar)
+  {
+    m_vertical_scrollbar->setMaximum(m_view->lineCount());
+    m_vertical_scrollbar->setEnabled(true);
+    m_vertical_scrollbar->setSingleStep(3);
+  }
 }
 
 void QTypewriter::updateLayout()
