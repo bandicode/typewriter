@@ -561,7 +561,7 @@ void QTypewriter::updateScrollBarsValues()
 {
   if (m_vertical_scrollbar)
   {
-    m_vertical_scrollbar->setMaximum(m_view->lineCount());
+    m_vertical_scrollbar->setMaximum(m_view->maxLinescroll());
     m_vertical_scrollbar->setEnabled(true);
     m_vertical_scrollbar->setSingleStep(3);
   }

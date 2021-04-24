@@ -101,6 +101,7 @@ public:
   iterator end() const { return m_end; }
 
   size_t size() const { return m_size; }
+  bool empty() const { return m_size == 0; }
 };
 
 } // namespace details
@@ -200,6 +201,7 @@ public:
   int displayedLineCount();
 
   int linescroll() const;
+  int maxLinescroll() const;
   void setLineScroll(int linescroll);
 
   const QFont& font() const;

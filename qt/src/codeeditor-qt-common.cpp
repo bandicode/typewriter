@@ -405,9 +405,14 @@ int QTypewriterView::linescroll() const
   return m_linescroll;
 }
 
+int QTypewriterView::maxLinescroll() const
+{
+  return lineCount() - 1;
+}
+
 void QTypewriterView::setLineScroll(int linescroll)
 {
-  linescroll = std::max(0, std::min(linescroll, lineCount() - displayedLineCount()));
+  linescroll = std::max(0, std::min(linescroll, maxLinescroll()));
 
   if (m_linescroll != linescroll)
   {
@@ -713,6 +718,9 @@ void QTypewriterView::highlightView()
     return;
 
   auto lines = visibleLines();
+
+  if (lines.empty())
+    return;
 
   typewriter::TextBlock lastblock = std::prev(lines.end())->block();
   int lastnum = lastblock.blockNumber();
