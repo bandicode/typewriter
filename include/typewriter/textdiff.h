@@ -90,8 +90,6 @@ public:
   
   Diff takeFirst();
 
-  inline int agent() const { return mAgent; }
-
   void simplify();
 
   TextDiff& operator<<(Diff d);
@@ -104,7 +102,6 @@ private:
   bool apply_removal(Diff& d, Diff& removal);
 
 private:
-  int mAgent;
   std::vector<Diff> mDiffs;
 };
 
