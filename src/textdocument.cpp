@@ -580,32 +580,6 @@ TextBlock TextDocument::findBlockByNumber(int num) const
   return TextBlock{ this, it };
 }
 
-int TextDocument::availableUndoSteps() const
-{
-  return 0;
-}
-
-int TextDocument::availableRedoSteps() const
-{
-  return 0;
-}
-
-void TextDocument::undo()
-{
-  if (!isUndoAvailable())
-    return;
-
-  throw std::runtime_error{ "Not implemented" };
-}
-
-void TextDocument::redo()
-{
-  if (!isRedoAvailable())
-    return;
-
-  throw std::runtime_error{ "Not implemented" };
-}
-
 void TextDocument::updatePositionOnInsert(Position & pos, const Position & insertpos, const TextBlock & newblock)
 {
   if (pos.line == insertpos.line && pos.column >= insertpos.column)

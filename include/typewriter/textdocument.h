@@ -67,14 +67,6 @@ public:
   TextBlock lastBlock() const;
   TextBlock findBlockByNumber(int num) const;
 
-  /// TODO: validate this candidate interface or (maybe?) remove
-  int availableUndoSteps() const;
-  inline bool isUndoAvailable() const { return availableUndoSteps() > 0; }
-  int availableRedoSteps() const;
-  inline bool isRedoAvailable() const { return availableRedoSteps() > 0; }
-  void undo();
-  void redo();
-
   static void updatePositionOnInsert(Position & pos, const Position & insertpos, const TextBlock & newblock);
   static void updatePositionOnBlockDestroyed(Position & pos, int linenum, const TextBlock & block);
   static void updatePositionOnContentsChange(Position & pos, const TextBlock & block, const Position & editpos, int charsRemoved, int charsAdded);
