@@ -730,13 +730,17 @@ void QTypewriterView::highlightView()
 
   typewriter::TextBlock firstblock = lines.begin()->block();
   int firstnum = firstblock.blockNumber();
-
-  if (m_syntax_highlighter->m_last_highlighted_line != -1)
+  
+  if (m_syntax_highlighter->m_last_highlighted_line > firstnum)
   {
-    if (m_syntax_highlighter->m_last_highlighted_line > firstnum)
-      firstblock = typewriter::next(firstblock, m_syntax_highlighter->m_last_highlighted_line - firstnum);
-    else
+    firstblock = typewriter::next(firstblock, m_syntax_highlighter->m_last_highlighted_line - firstnum);
+  }
+  else if(m_syntax_highlighter->m_last_highlighted_line < firstnum)
+  {
+    if (m_syntax_highlighter->m_last_highlighted_line != -1)
       firstblock = typewriter::prev(firstblock, firstnum - m_syntax_highlighter->m_last_highlighted_line);
+    else
+      firstblock = document()->document()->firstBlock();
   }
 
   m_syntax_highlighter->startHighlight(firstblock);
