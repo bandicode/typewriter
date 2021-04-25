@@ -148,8 +148,6 @@ void TextDocumentImpl::insertBlock(Position pos, const TextBlock & block)
   for (const auto& l : listeners)
   {
     l->blockInserted(pos, TextBlock{ document, newblock });
-    l->blockCountChanged(this->lineCount);
-    l->contentsChanged();
   }
 }
 
@@ -173,7 +171,6 @@ void TextDocumentImpl::insertChar(Position pos, const TextBlock & block, unicode
   for (const auto& l : listeners)
   {
     l->contentsChange(block, pos, 0, 1);
-    l->contentsChanged();
   }
 }
 
@@ -200,7 +197,6 @@ void TextDocumentImpl::insertText(Position pos, const TextBlock & block, const s
   for (const auto& l : listeners)
   {
     l->contentsChange(block, pos, 0, str.length());
-    l->contentsChanged();
   }
 }
 
@@ -217,11 +213,6 @@ void TextDocumentImpl::deleteChar(Position pos, const TextBlock & block)
   {
     remove_selection_singleline(pos, block, 1);
   }
-
-  for (const auto& l : listeners)
-  {
-    l->contentsChanged();
-  }
 }
 
 void TextDocumentImpl::deletePreviousChar(Position pos, const TextBlock & block)
@@ -236,11 +227,6 @@ void TextDocumentImpl::deletePreviousChar(Position pos, const TextBlock & block)
   else
   {
     remove_selection_singleline(Position{ pos.line, pos.column - 1 }, block, 1);
-  }
-
-  for (const auto& l : listeners)
-  {
-    l->contentsChanged();
   }
 }
 
@@ -264,11 +250,6 @@ void TextDocumentImpl::removeSelection(const Position begin, const TextBlock & b
   {
     /// TODO: write another overload to handle this case without having to iterate over the blocks twice.
     remove_selection_multiline(end, prev(beginBlock, begin.line - end.line), begin);
-  }
-
-  for (const auto& l : listeners)
-  {
-    l->contentsChanged();
   }
 }
 
@@ -510,22 +491,12 @@ void TextDocumentListener::blockInserted(const Position& pos, const TextBlock& n
 
 }
 
-void TextDocumentListener::blockCountChanged(int newBlockCount)
-{
-
-}
-
 void TextDocumentListener::blockDestroyed(int line, const TextBlock& block)
 {
 
 }
 
 void TextDocumentListener::contentsChange(const TextBlock& block, const Position& pos, int charsRemoved, int charsAdded)
-{
-
-}
-
-void TextDocumentListener::contentsChanged()
 {
 
 }

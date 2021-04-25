@@ -46,10 +46,10 @@ public:
    * \brief notifies that a new block was inserted
    */
   virtual void blockInserted(const Position& pos, const TextBlock& newblock);
-  virtual void blockCountChanged(int newBlockCount);
+
   virtual void blockDestroyed(int line, const TextBlock& block);
+
   virtual void contentsChange(const TextBlock& block, const Position& pos, int charsRemoved, int charsAdded);
-  virtual void contentsChanged();
 };
 
 class TYPEWRITER_API TextDocument
